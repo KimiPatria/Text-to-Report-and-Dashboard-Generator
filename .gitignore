@@ -1,0 +1,24 @@
+# Environment & secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Generated / runtime data (may contain company schema info)
+chroma_store/
+query_history.db
+schema_metadata.json
+
+# Company-specific configuration (use .example files as templates)
+glossary.yaml
+business_rules.txt

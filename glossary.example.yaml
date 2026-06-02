@@ -1,0 +1,32 @@
+# Business glossary — augments the dynamic catalog with curated hints.
+# Copy this file to glossary.yaml and fill in your domain-specific tables/terms.
+# Adding a new table does NOT require an entry here; the catalog will discover it.
+# Use this file only for terms whose mapping the LLM cannot infer from names alone.
+
+rules:
+  - id: date_handling
+    text: |-
+      DATE HANDLING: Check the DDL column type before filtering by date.
+      If the column type is character varying / text: use TO_DATE(column, 'YYYY-MM-DD') for comparisons.
+        Example: TO_DATE(my_date_col, 'YYYY-MM-DD') >= '2024-01-01'
+      If the column type is date: compare directly using ISO strings or ::date cast. NEVER wrap a date-type column in TO_DATE.
+        Example: created_date >= '2024-01-01'::date
+      Never use NOW() - INTERVAL directly on a VARCHAR column.
+      "Last 3 months" for a VARCHAR column: TO_DATE(column, 'YYYY-MM-DD') >= (CURRENT_DATE - INTERVAL '90 days').
+  - id: table_preference
+    text: "TABLE PREFERENCE: Always prefer m_ (master) tables over integration/sync tables unless source-system-specific fields are needed."
+  - id: active_records
+    text: "ACTIVE RECORDS: Always add WHERE (is_deleted = 0 OR is_deleted IS NULL) when the column exists."
+  - id: hierarchy
+    text: "HIERARCHY: Describe your data hierarchy here. Example: Region -> Site -> Department -> SubUnit."
+
+key_mappings:
+  - term: "example business term"
+    table: t_example_transaction
+    columns: [example_id, example_qty, example_date]
+  - term: "another business term"
+    table: t_another_table
+    columns: [col_a, col_b]
+  - term: "reference / lookup"
+    table: m_reference_table
+    columns: [code, name]

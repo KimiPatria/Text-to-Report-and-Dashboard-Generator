@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPMS Report Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:          #f6f8fa;
+  --surface:     #ffffff;
+  --border:      #d0d7de;
+  --border-s:    #eaedf0;
+  --text:        #24292f;
+  --muted:       #57606a;
+  --accent:      #4f46e5;
+  --accent-dim:  rgba(79,70,229,.08);
+  --accent-glow: rgba(79,70,229,.22);
+  --error:       #cf222e;
+  --error-bg:    #fff0f0;
+  --r:           8px;
+  --font:        'Inter', system-ui, sans-serif;
+}
+
+html, body { height:100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  display: flex; flex-direction: column;
+  font-size: 14px; line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── HEADER ──────────────────────────────────────────────────────── */
+.app-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 20px; height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; z-index: 10;
+  position: sticky; top: 0;
+}
+.logo-mark {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--accent); font-size: 15px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.app-name { font-weight: 700; font-size: 14px; letter-spacing: -.3px; }
+.app-sep  { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+.app-sub  { font-size: 12px; color: var(--muted); }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.back-link {
+  font-size: 12px; color: var(--muted); text-decoration: none;
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 10px; transition: border-color .15s, color .15s;
+}
+.back-link:hover { border-color: var(--accent); color: var(--accent); }
+.provider-pill {
+  font-size: 11px; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 99px; padding: 2px 10px;
+}
+.fallback-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #ef4444;
+  transition: background .3s;
+  flex-shrink: 0;
+  cursor: default;
+}
+.fallback-dot.active { background: #22c55e; }
+
+/* ── LAYOUT ──────────────────────────────────────────────────────── */
+.page-body {
+  display: flex; flex: 1;
+  gap: 0;
+}
+
+/* ── INPUT PANEL ─────────────────────────────────────────────────── */
+.input-panel {
+  width: 340px; flex-shrink: 0;
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 20px 18px; gap: 18px;
+  overflow-y: auto;
+}
+.panel-title {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  letter-spacing: -.2px;
+}
+
+/* ── PRESETS SECTION ─────────────────────────────────────────────── */
+.presets-section { display: flex; flex-direction: column; gap: 10px; }
+.presets-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.preset-cards { display: flex; flex-direction: column; gap: 7px; }
+.preset-card {
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: 10px 13px; cursor: pointer; transition: border-color .15s, background .15s;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg);
+}
+.preset-card:hover  { border-color: var(--accent); background: var(--accent-dim); }
+.preset-card.active { border-color: var(--accent); background: var(--accent-dim); }
+.preset-icon { font-size: 18px; flex-shrink: 0; }
+.preset-info { flex: 1; min-width: 0; }
+.preset-name { font-size: 12px; font-weight: 600; }
+.preset-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* ── DATE SLIDER ─────────────────────────────────────────────────── */
+.date-range-section { display: flex; flex-direction: column; gap: 8px; }
+.date-range-header {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px;
+}
+.date-range-label { font-weight: 600; }
+.date-range-value {
+  font-weight: 700; color: var(--accent); font-size: 13px;
+}
+input[type=range] {
+  width: 100%; accent-color: var(--accent); cursor: pointer;
+}
+.date-range-hints {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--muted);
+}
+
+/* ── GENERATE BUTTON ─────────────────────────────────────────────── */
+.gen-btn {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: var(--r); padding: 10px 16px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  font-family: var(--font); width: 100%;
+  transition: background .15s, opacity .15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.gen-btn:hover:not(:disabled) { background: #4338ca; }
+.gen-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── DIVIDER ─────────────────────────────────────────────────────── */
+.or-divider {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: var(--muted);
+}
+.or-divider::before, .or-divider::after {
+  content: ''; flex: 1; border-top: 1px solid var(--border-s);
+}
+
+/* ── TEXT INPUT SECTION ──────────────────────────────────────────── */
+.text-section { display: flex; flex-direction: column; gap: 8px; }
+.text-label { font-size: 12px; font-weight: 600; }
+.text-sub   { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.report-ta {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r); color: var(--text);
+  font-family: var(--font); font-size: 12px;
+  padding: 10px 12px; resize: vertical;
+  min-height: 80px; max-height: 180px;
+  line-height: 1.5; outline: none;
+  transition: border-color .2s;
+}
+.report-ta:focus { border-color: var(--accent); }
+.report-ta::placeholder { color: var(--muted); }
+.text-hint { font-size: 10px; color: var(--muted); }
+
+/* ── REPORT OUTPUT ───────────────────────────────────────────────── */
+.output-panel {
+  flex: 1; overflow-y: auto; padding: 28px 32px;
+  min-width: 0;
+}
+.output-panel::-webkit-scrollbar { width: 4px; }
+.output-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── EMPTY STATE ─────────────────────────────────────────────────── */
+#empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; min-height: 400px;
+  gap: 12px; color: var(--muted); text-align: center;
+}
+.empty-icon { font-size: 48px; opacity: .35; }
+.empty-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.empty-sub   { font-size: 12px; max-width: 320px; line-height: 1.6; }
+
+/* ── LOADING STATE ───────────────────────────────────────────────── */
+#loading-state {
+  display: none;
+  flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; min-height: 400px;
+  gap: 14px; color: var(--muted);
+}
+#loading-state.visible { display: flex; }
+.dots { display: flex; gap: 5px; align-items: center; }
+.dots span {
+  width: 8px; height: 8px; background: var(--accent);
+  border-radius: 50%; animation: pulse 1.2s ease-in-out infinite;
+}
+.dots span:nth-child(2) { animation-delay: .2s; }
+.dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes pulse {
+  0%,80%,100% { opacity:.3; transform:scale(.8); }
+  40%         { opacity:1;  transform:scale(1);  }
+}
+
+/* ── REPORT DOCUMENT ─────────────────────────────────────────────── */
+#report-doc {
+  display: none;
+  max-width: 960px; margin: 0 auto;
+}
+#report-doc.visible { display: block; }
+
+.report-actions {
+  display: flex; gap: 8px; margin-bottom: 16px;
+  justify-content: flex-end;
+}
+.action-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 7px 14px;
+  font-size: 12px; font-weight: 500; color: var(--text);
+  cursor: pointer; font-family: var(--font);
+  transition: border-color .15s, background .15s;
+}
+.action-btn:hover { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+
+/* The printable report card */
+.report-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+
+.report-header {
+  padding: 28px 32px 20px;
+  border-bottom: 2px solid var(--border);
+}
+.report-company {
+  font-size: 11px; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+}
+.report-title {
+  font-size: 26px; font-weight: 800; letter-spacing: -.5px;
+  color: var(--text); margin-bottom: 16px;
+  line-height: 1.2;
+}
+.report-meta {
+  display: flex; flex-wrap: wrap; gap: 20px;
+  font-size: 11px; color: var(--muted);
+}
+.report-meta-item { display: flex; flex-direction: column; gap: 2px; }
+.report-meta-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; }
+.report-meta-value { font-size: 12px; color: var(--text); font-weight: 500; }
+
+.report-body { padding: 0; }
+
+/* Section */
+.report-section { border-bottom: 1px solid var(--border-s); }
+.report-section:last-child { border-bottom: none; }
+.report-section-head {
+  padding: 16px 32px 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.section-title {
+  font-size: 13px; font-weight: 700; flex: 1;
+}
+.section-count {
+  font-size: 11px; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--border-s);
+  border-radius: 99px; padding: 2px 9px;
+}
+
+.report-table-wrap {
+  overflow-x: auto;
+  padding: 0 32px 20px;
+}
+.report-table-wrap::-webkit-scrollbar { height: 4px; }
+.report-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.report-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 11.5px;
+}
+.report-table thead th {
+  background: var(--bg); color: var(--muted);
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 8px 12px; text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  position: sticky; top: 0;
+}
+.report-table tbody td {
+  padding: 7px 12px; color: var(--text);
+  border-bottom: 1px solid var(--border-s);
+  white-space: nowrap;
+}
+.report-table tbody tr:last-child td { border-bottom: none; }
+.report-table tbody tr:hover td { background: #f9fafb; }
+.report-table tbody tr:nth-child(even) td { background: #fafbfc; }
+.report-table tbody tr:nth-child(even):hover td { background: #f4f5f8; }
+
+.section-more {
+  text-align: center; font-size: 10px; color: var(--muted);
+  padding: 6px 32px 14px;
+}
+
+/* SQL toggle */
+.sql-toggle-wrap { padding: 0 32px 14px; }
+.sql-toggle-btn {
+  font-size: 10px; color: var(--muted);
+  background: none; border: 1px dashed var(--border);
+  border-radius: 5px; padding: 3px 10px;
+  cursor: pointer; font-family: var(--font);
+  transition: border-color .15s, color .15s;
+}
+.sql-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sql-block {
+  display: none; margin-top: 8px;
+  background: var(--bg); border: 1px solid var(--border-s);
+  border-radius: var(--r); padding: 10px 14px;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 10.5px; line-height: 1.6; color: var(--text);
+  white-space: pre-wrap; word-break: break-all;
+  max-height: 200px; overflow-y: auto;
+}
+.sql-block.open { display: block; }
+
+/* Error section */
+.section-error {
+  margin: 0 32px 16px;
+  background: var(--error-bg); border: 1px solid #fecaca;
+  border-radius: var(--r); padding: 10px 14px;
+  color: var(--error); font-size: 11px; line-height: 1.5;
+}
+
+/* Pipeline-level error messages (off_domain = grey, no_data = amber) */
+.pipeline-msg {
+  border-radius: var(--r); padding: 20px 24px;
+  font-size: 13px; line-height: 1.7; margin: 32px;
+}
+.pipeline-info {
+  background: #f3f4f6; border: 1px solid #d1d5db; color: #6b7280;
+}
+.pipeline-warn {
+  background: #fffbeb; border: 1px solid #fcd34d; color: #92400e;
+}
+
+/* Report footer */
+.report-footer {
+  padding: 14px 32px;
+  border-top: 1px solid var(--border-s);
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10px; color: var(--muted);
+}
+
+/* ── TOAST ───────────────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--error); color: #fff;
+  padding: 10px 16px; border-radius: 8px;
+  font-size: 12px; z-index: 400; max-width: 300px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+}
+#toast.hidden { display: none; }
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .page-body   { flex-direction: column; }
+  .input-panel { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+  .output-panel { padding: 16px; }
+  .report-header, .report-section-head,
+  .report-table-wrap, .sql-toggle-wrap, .section-more { padding-left: 16px; padding-right: 16px; }
+}
+
+/* ── SAVED OPEN BUTTON ───────────────────────────────────────────── */
+.saved-open-btn {
+  display: none; align-items: center; justify-content: center; gap: 8px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: 9px 14px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: var(--font); width: 100%;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.saved-open-btn:hover { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+.saved-open-btn.has-templates { display: flex; }
+.saved-open-badge {
+  background: var(--accent); color: #fff; border-radius: 99px;
+  font-size: 10px; font-weight: 700; padding: 1px 7px;
+}
+
+/* ── MODAL ───────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(15, 20, 30, 0.45);
+  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+  display: none; align-items: center; justify-content: center; padding: 24px;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; width: 100%; max-width: 700px;
+  max-height: 84vh; display: flex; flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0,0,0,.22), 0 4px 16px rgba(0,0,0,.1);
+  overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: center; padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.modal-title { font-size: 15px; font-weight: 700; flex: 1; letter-spacing: -.3px; }
+.modal-close {
+  background: none; border: none; font-size: 20px; color: var(--muted);
+  cursor: pointer; padding: 0; line-height: 1; border-radius: 5px;
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s; font-family: var(--font);
+}
+.modal-close:hover { background: var(--bg); color: var(--text); }
+.modal-body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* Left column — template list */
+.modal-tpl-col {
+  width: 260px; flex-shrink: 0; border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 14px 12px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.modal-tpl-col::-webkit-scrollbar { width: 3px; }
+.modal-tpl-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.modal-col-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--muted); padding: 0 2px 4px;
+}
+.modal-tpl-card {
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: 9px 11px; cursor: pointer; background: var(--bg);
+  display: flex; align-items: flex-start; gap: 8px;
+  transition: border-color .15s, background .15s;
+}
+.modal-tpl-card:hover  { border-color: var(--accent); background: var(--accent-dim); }
+.modal-tpl-card.active { border-color: var(--accent); background: var(--accent-dim); }
+.mtpl-radio {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
+  border: 2px solid var(--border); transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.modal-tpl-card.active .mtpl-radio {
+  border-color: var(--accent); background: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--surface);
+}
+.mtpl-info { flex: 1; min-width: 0; }
+.mtpl-name  { font-size: 12px; font-weight: 600; }
+.mtpl-query {
+  font-size: 10px; color: var(--muted); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mtpl-badge {
+  display: inline-block; font-size: 9px; font-weight: 600;
+  padding: 1px 6px; border-radius: 99px; margin-top: 5px;
+}
+.mtpl-badge.date-on  { background: #dbeafe; color: #1d4ed8; }
+.mtpl-badge.date-off { background: var(--bg); color: var(--muted); border: 1px solid var(--border-s); }
+.del-btn {
+  background: none; border: 1px solid transparent; color: var(--muted);
+  font-size: 16px; line-height: 1; cursor: pointer; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; font-family: var(--font);
+  transition: border-color .15s, color .15s, background .15s;
+}
+.del-btn:hover { border-color: var(--error); color: var(--error); background: var(--error-bg); }
+.edit-btn {
+  background: none; border: 1px solid transparent; color: var(--muted);
+  cursor: pointer; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; font-family: var(--font);
+  transition: border-color .15s, color .15s, background .15s;
+  opacity: 0;
+}
+.modal-tpl-card:hover .edit-btn { opacity: 1; }
+.edit-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.mtpl-card-actions { display: flex; gap: 3px; flex-shrink: 0; }
+.mtpl-rename-input {
+  font-size: 12px; font-weight: 600; font-family: var(--font);
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--accent); border-radius: 3px;
+  padding: 1px 5px; width: 100%; outline: none;
+}
+.report-title-editable {
+  outline: none; cursor: text; display: inline-block; min-width: 40px;
+  border-bottom: 1px dashed var(--border); transition: border-color .15s;
+}
+.report-title-editable:focus { border-bottom-color: var(--accent); }
+@media print { .report-title-editable { border-bottom: none; cursor: default; } .edit-hint { display: none; } }
+.modal-empty {
+  text-align: center; padding: 28px 12px;
+  color: var(--muted); font-size: 12px; line-height: 1.7;
+}
+
+/* Right column — date config */
+.modal-cfg-col {
+  flex: 1; padding: 20px 22px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.modal-cfg-section { display: flex; flex-direction: column; gap: 10px; }
+.modal-cfg-section > .modal-col-label { padding-bottom: 0; }
+.date-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.date-field { display: flex; flex-direction: column; gap: 5px; }
+.date-field label {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .07em;
+}
+input[type="date"] {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r); color: var(--text);
+  font-family: var(--font); font-size: 13px;
+  padding: 9px 12px; outline: none; cursor: pointer;
+  transition: border-color .2s;
+}
+input[type="date"]:focus { border-color: var(--accent); }
+.date-note {
+  font-size: 11px; line-height: 1.6; padding: 10px 13px;
+  border-radius: var(--r); border: 1px solid var(--border-s);
+  background: var(--bg); color: var(--muted);
+}
+.date-note.applies { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+.date-note.fixed   { background: #fafbfc; border-color: var(--border-s); color: var(--muted); }
+
+/* Modal footer */
+.modal-footer {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px; border-top: 1px solid var(--border);
+  flex-shrink: 0; background: var(--bg);
+}
+#modal-gen-btn { max-width: 200px; }
+
+/* ── SAVE FORM ───────────────────────────────────────────────────── */
+.save-form {
+  display: none; flex-direction: column; gap: 6px;
+  margin-top: 8px; padding: 12px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.save-form.open { display: flex; }
+.tpl-name-input {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); color: var(--text);
+  font-family: var(--font); font-size: 12px;
+  padding: 8px 12px; outline: none;
+  transition: border-color .2s;
+}
+.tpl-name-input:focus { border-color: var(--accent); }
+.save-form-btns { display: flex; gap: 6px; }
+
+/* ── FALLBACK NOTICE ─────────────────────────────────────────────── */
+.fallback-notice {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: #92400e;
+  background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: var(--r); padding: 8px 14px;
+  margin-top: 12px; max-width: 960px; margin-left: auto; margin-right: auto;
+}
+
+/* ── PRINT STYLES ────────────────────────────────────────────────── */
+@media print {
+  body { background: #fff; }
+  .app-header, .input-panel, .report-actions, .sql-toggle-wrap, .report-footer { display: none !important; }
+  .output-panel { padding: 0; overflow: visible; }
+  .report-card { box-shadow: none; border: none; border-radius: 0; }
+  .page-body { display: block; }
+  #report-doc { display: block !important; }
+  .report-header { padding: 16px 24px; }
+  .report-table-wrap { padding: 0 24px 16px; overflow: visible; }
+  .report-section-head { padding-left: 24px; }
+  .section-more { padding-left: 24px; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo-mark">🌿</div>
+  <span class="app-name">EPMS AI</span>
+  <div class="app-sep" style="width:1px;height:16px;background:var(--border);flex-shrink:0;"></div>
+  <span class="app-sub">Report Generator</span>
+  <div class="header-right">
+    <a href="/" class="back-link">← Dashboard</a>
+    <span class="fallback-dot" id="fallback-dot" title="LLM Fallback: OFF"></span>
+    <span class="provider-pill" id="provider-pill">—</span>
+  </div>
+</header>
+
+<div class="page-body">
+
+  <!-- ── INPUT PANEL ── -->
+  <aside class="input-panel">
+
+    <!-- Presets -->
+    <div class="presets-section">
+      <div class="presets-header">
+        <span class="panel-title">Preset Reports</span>
+      </div>
+      <div class="preset-cards" id="preset-cards">
+        <div class="preset-card" data-preset="general" onclick="selectPreset(this)">
+          <div class="preset-icon">📋</div>
+          <div class="preset-info">
+            <div class="preset-name">General Report</div>
+            <div class="preset-desc">Workforce, blocks &amp; harvest overview</div>
+          </div>
+        </div>
+        <div class="preset-card" data-preset="employee" onclick="selectPreset(this)">
+          <div class="preset-icon">👷</div>
+          <div class="preset-info">
+            <div class="preset-name">Employee Report</div>
+            <div class="preset-desc">Personnel directory &amp; attendance</div>
+          </div>
+        </div>
+        <div class="preset-card" data-preset="harvest" onclick="selectPreset(this)">
+          <div class="preset-icon">🌴</div>
+          <div class="preset-info">
+            <div class="preset-name">Harvest Report</div>
+            <div class="preset-desc">FFB bunches &amp; bunch weight by block</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Date range -->
+    <div class="date-range-section">
+      <div class="date-range-header">
+        <span class="date-range-label">Date Range</span>
+        <span class="date-range-value" id="days-label">Last 30 days</span>
+      </div>
+      <input type="range" id="days-slider" min="7" max="90" value="30"
+             oninput="updateDaysLabel(this.value)">
+      <div class="date-range-hints">
+        <span>7 days</span>
+        <span>30 days</span>
+        <span>90 days</span>
+      </div>
+    </div>
+
+    <!-- Generate preset button -->
+    <button class="gen-btn" id="preset-btn" onclick="runPreset()" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+      <span id="preset-btn-label">Select a preset above</span>
+    </button>
+
+    <div class="or-divider">or ask in plain language</div>
+
+    <!-- Text input section -->
+    <div class="text-section">
+      <div class="text-label">Text to Report</div>
+      <div class="text-sub">Describe what data you need and the AI will generate and run the SQL for you.</div>
+      <textarea id="report-query" class="report-ta"
+        placeholder="e.g. Show total harvest bunches by block for the last 30 days…"
+        oninput="grow(this)"
+        onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runTextReport();}"></textarea>
+      <button class="gen-btn" id="text-btn" onclick="runTextReport()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+        <span>Generate Report</span>
+      </button>
+      <div class="text-hint">Ctrl + Enter to generate &nbsp;·&nbsp; SELECT only — no writes</div>
+    </div>
+
+    <!-- Saved Templates button -->
+    <button class="saved-open-btn" id="saved-open-btn" onclick="openSavedModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Saved Templates
+      <span class="saved-open-badge" id="saved-count">0</span>
+    </button>
+
+  </aside>
+
+  <!-- ── OUTPUT PANEL ── -->
+  <main class="output-panel">
+
+    <div id="empty-state">
+      <div class="empty-icon">📄</div>
+      <div class="empty-title">No report yet</div>
+      <div class="empty-sub">Select a preset report or type a question on the left to generate a formatted data report.</div>
+    </div>
+
+    <div id="loading-state">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div style="font-size:13px;color:var(--muted);" id="loading-label">Generating report…</div>
+    </div>
+
+    <div id="report-doc">
+      <!-- Populated by renderReport() -->
+    </div>
+
+  </main>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<!-- ── SAVED TEMPLATES MODAL ──────────────────────────────────────── -->
+<div class="modal-overlay" id="saved-modal" onclick="closeSavedModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+
+    <div class="modal-header">
+      <span class="modal-title">💾 Saved Report Templates</span>
+      <button class="modal-close" onclick="closeSavedModal()" title="Close">×</button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Left: template list -->
+      <div class="modal-tpl-col">
+        <div class="modal-col-label">Templates</div>
+        <div id="modal-tpl-list">
+          <!-- rendered by renderModalTemplates() -->
+        </div>
+      </div>
+
+      <!-- Right: date config -->
+      <div class="modal-cfg-col">
+
+        <div class="modal-cfg-section">
+          <div class="modal-col-label">Date Range</div>
+          <div class="date-grid">
+            <div class="date-field">
+              <label for="modal-start">From</label>
+              <input type="date" id="modal-start">
+            </div>
+            <div class="date-field">
+              <label for="modal-end">To</label>
+              <input type="date" id="modal-end">
+            </div>
+          </div>
+        </div>
+
+<div class="date-note" id="modal-date-note">
+          Select a template on the left to get started.
+        </div>
+
+      </div>
+
+    </div><!-- /modal-body -->
+
+    <div class="modal-footer">
+      <button class="gen-btn" id="modal-gen-btn" onclick="runSavedFromModal()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        <span>Generate Report</span>
+      </button>
+      <button class="action-btn" onclick="closeSavedModal()">Cancel</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+let busy                  = false;
+let activePreset          = null;
+let lastGeneratedSql      = null;
+let lastQuery             = null;
+let activeModalTemplateId = null;
+let _serverTemplates      = [];   // authoritative copy fetched from backend
+
+/* ── boot ──────────────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', async () => {
+  fetch('/health')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d) document.getElementById('provider-pill').textContent = d.provider || 'Connected'; })
+    .catch(() => {});
+
+  grow(document.getElementById('report-query'));
+  await loadSavedTemplates();
+});
+
+/* ── preset selection ───────────────────────────────────────────────── */
+function selectPreset(el) {
+  document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  activePreset = el.dataset.preset;
+  const btn = document.getElementById('preset-btn');
+  const lbl = document.getElementById('preset-btn-label');
+  btn.disabled = false;
+  const names = { general: 'General Report', employee: 'Employee Report', harvest: 'Harvest Report' };
+  lbl.textContent = 'Generate ' + (names[activePreset] || 'Report');
+}
+
+/* ── date slider ────────────────────────────────────────────────────── */
+function updateDaysLabel(v) {
+  document.getElementById('days-label').textContent = `Last ${v} days`;
+}
+
+/* ── run preset ─────────────────────────────────────────────────────── */
+async function runPreset() {
+  if (!activePreset || busy) return;
+  lastGeneratedSql = null;
+  const days = parseInt(document.getElementById('days-slider').value);
+  setBusy(true, 'Running preset queries…');
+  setFallbackDot(false);
+  try {
+    const data = await postJSON('/report/preset', { preset: activePreset, days });
+    renderReport(data);
+  } catch (err) {
+    showToast(err.message || 'Request failed');
+  } finally {
+    setBusy(false);
+  }
+}
+
+/* ── run text report ────────────────────────────────────────────────── */
+async function runTextReport() {
+  const query = document.getElementById('report-query').value.trim();
+  if (!query || busy) return;
+  lastQuery = query;
+  lastGeneratedSql = null;
+  setBusy(true, 'Generating report with AI…');
+  setFallbackDot(false);
+  try {
+    const data = await postJSON('/report/generate', { query });
+    setFallbackDot(data.used_llm_fallback);
+    if (data.error) {
+      showPipelineError(data);
+    } else {
+      if (data.generated_sql) lastGeneratedSql = data.generated_sql;
+      renderReport(data);
+    }
+  } catch (err) {
+    showToast(err.message || 'Request failed');
+  } finally {
+    setBusy(false);
+  }
+}
+
+function showPipelineError(data) {
+  const doc = document.getElementById('report-doc');
+  const cls = data.error === 'off_domain' ? 'pipeline-info' : 'pipeline-warn';
+  doc.innerHTML = `<div class="pipeline-msg ${cls}">${esc(data.answer)}</div>`;
+  showDoc();
+}
+
+/* ── fallback dot ───────────────────────────────────────────────────── */
+function setFallbackDot(active) {
+  const dot = document.getElementById('fallback-dot');
+  if (!dot) return;
+  dot.classList.toggle('active', !!active);
+  dot.title = active ? 'LLM Fallback: ON' : 'LLM Fallback: OFF';
+}
+
+/* ── fetch helper ───────────────────────────────────────────────────── */
+async function postJSON(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Server error ${res.status}`);
+  }
+  return res.json();
+}
+
+/* ── render report ──────────────────────────────────────────────────── */
+function renderReport(data) {
+  const doc = document.getElementById('report-doc');
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  let sectionsHtml = '';
+  (data.sections || []).forEach((sec, idx) => {
+    sectionsHtml += buildSection(sec, idx + 1);
+  });
+
+  const totalRows = (data.sections || []).reduce((s, sec) => s + (sec.rows ? sec.rows.length : 0), 0);
+
+  const canSave = !!lastGeneratedSql;
+  const fallbackHtml = data.used_llm_fallback
+    ? `<div class="fallback-notice">⚠ Smart search was used to find relevant data for this query.</div>`
+    : '';
+
+  doc.innerHTML = `
+    <div class="report-actions">
+      <button class="action-btn" onclick="window.print()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        Print / Save as PDF
+      </button>
+      ${canSave ? `<button class="action-btn" id="save-tpl-btn" onclick="showSaveForm()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+        </svg>
+        Save as Template
+      </button>` : ''}
+    </div>
+    ${canSave ? `<div class="save-form" id="save-form">
+      <input type="text" id="tpl-name" class="tpl-name-input" placeholder="Name this template…"
+             onkeydown="if(event.key==='Enter')confirmSave()">
+      <div class="save-form-btns">
+        <button class="action-btn" onclick="confirmSave()">✓ Save</button>
+        <button class="action-btn" onclick="closeSaveForm()">Cancel</button>
+      </div>
+    </div>` : ''}
+
+    <div class="report-card" id="printable-report">
+      <div class="report-header">
+        <div class="report-company">Wilmar International — EPMS</div>
+        <div class="report-title">REPORT</div>
+        <div class="report-meta">
+          <div class="report-meta-item">
+            <span class="report-meta-label">Report Title <span class="edit-hint" style="font-weight:400;opacity:.55;text-transform:none;letter-spacing:0">✎ click to edit</span></span>
+            <span class="report-meta-value report-title-editable" id="report-title-value" contenteditable="true" spellcheck="false">${esc(data.title)}</span>
+          </div>
+          <div class="report-meta-item">
+            <span class="report-meta-label">Generated</span>
+            <span class="report-meta-value">${esc(dateStr)} at ${esc(timeStr)}</span>
+          </div>
+          <div class="report-meta-item">
+            <span class="report-meta-label">Total Records</span>
+            <span class="report-meta-value">${totalRows.toLocaleString()}</span>
+          </div>
+          ${data.provider ? `<div class="report-meta-item">
+            <span class="report-meta-label">AI Provider</span>
+            <span class="report-meta-value">${esc(data.provider)}</span>
+          </div>` : ''}
+        </div>
+      </div>
+      <div class="report-body">${sectionsHtml}</div>
+      <div class="report-footer">
+        <span>EPMS AI Report Generator</span>
+        <span>${esc(dateStr)}</span>
+      </div>
+    </div>
+    ${fallbackHtml}
+  `;
+
+  showDoc();
+}
+
+function buildSection(sec, num) {
+  if (sec.error && (!sec.rows || !sec.rows.length)) {
+    const sqlHtml = sec.sql ? `
+      <div class="sql-toggle-wrap">
+        <button class="sql-toggle-btn" onclick="toggleSql(this)">Show SQL</button>
+        <pre class="sql-block">${esc(sec.sql)}</pre>
+      </div>` : '';
+    return `
+      <div class="report-section">
+        <div class="report-section-head">
+          <div class="section-num">${num}</div>
+          <span class="section-title">${esc(sec.title)}</span>
+        </div>
+        <div class="section-error">⚠ ${esc(sec.error)}</div>
+        ${sqlHtml}
+      </div>`;
+  }
+
+  const cols = sec.columns || [];
+  const rows = sec.rows    || [];
+  const MAX  = 200;
+  const shown = rows.slice(0, MAX);
+
+  const ths = cols.map(c => `<th>${esc(String(c))}</th>`).join('');
+  const trs = shown.map(r =>
+    `<tr>${cols.map(c => `<td>${esc(str(r[c]))}</td>`).join('')}</tr>`
+  ).join('');
+
+  const moreMsg = rows.length > MAX
+    ? `<div class="section-more">Showing first ${MAX} of ${rows.length.toLocaleString()} records</div>` : '';
+
+  const sqlHtml = sec.sql ? `
+    <div class="sql-toggle-wrap">
+      <button class="sql-toggle-btn" onclick="toggleSql(this)">Show SQL</button>
+      <pre class="sql-block">${esc(sec.sql)}</pre>
+    </div>` : '';
+
+  return `
+    <div class="report-section">
+      <div class="report-section-head">
+        <div class="section-num">${num}</div>
+        <span class="section-title">${esc(sec.title)}</span>
+        <span class="section-count">${rows.length.toLocaleString()} rows</span>
+      </div>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead><tr>${ths}</tr></thead>
+          <tbody>${trs}</tbody>
+        </table>
+      </div>
+      ${moreMsg}
+      ${sqlHtml}
+    </div>`;
+}
+
+/* ── SQL toggle ─────────────────────────────────────────────────────── */
+function toggleSql(btn) {
+  const block = btn.nextElementSibling;
+  const open  = block.classList.toggle('open');
+  btn.textContent = open ? 'Hide SQL' : 'Show SQL';
+}
+
+/* ── visibility helpers ─────────────────────────────────────────────── */
+function showDoc() {
+  document.getElementById('empty-state').style.display   = 'none';
+  document.getElementById('loading-state').classList.remove('visible');
+  document.getElementById('report-doc').classList.add('visible');
+}
+
+function setBusy(v, label) {
+  busy = v;
+  const presetBtn = document.getElementById('preset-btn');
+  const textBtn   = document.getElementById('text-btn');
+  presetBtn.disabled = v || !activePreset;
+  textBtn.disabled   = v;
+
+  if (v) {
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('report-doc').classList.remove('visible');
+    document.getElementById('loading-state').classList.add('visible');
+    document.getElementById('loading-label').textContent = label || 'Generating report…';
+  }
+}
+
+/* ── toast ──────────────────────────────────────────────────────────── */
+function showToast(msg, type = 'error') {
+  const t = document.getElementById('toast');
+  t.textContent = (type === 'success' ? '✓ ' : '⚠ ') + msg;
+  t.style.background = type === 'success' ? '#2da44e' : 'var(--error)';
+  t.classList.remove('hidden');
+  clearTimeout(showToast._tid);
+  showToast._tid = setTimeout(() => t.classList.add('hidden'), 5000);
+}
+
+/* ── saved templates — server-backed storage ────────────────────── */
+async function loadSavedTemplates() {
+  // One-time migration: push any leftover localStorage templates to backend
+  const legacy = (() => {
+    try { return JSON.parse(localStorage.getItem('epms_saved_templates') || '[]'); }
+    catch { return []; }
+  })();
+  if (legacy.length && localStorage.getItem('epms_templates_migrated') !== '1') {
+    try {
+      const res = await fetch('/report/migrate-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templates: legacy }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        _serverTemplates = d.templates || [];
+        localStorage.removeItem('epms_saved_templates');
+        localStorage.setItem('epms_templates_migrated', '1');
+      }
+    } catch (e) { /* migration best-effort */ }
+  }
+
+  // Fetch current list from backend
+  try {
+    const res = await fetch('/report/saved-templates');
+    if (res.ok) _serverTemplates = await res.json();
+  } catch (e) { /* stay with what we have */ }
+
+  const btn     = document.getElementById('saved-open-btn');
+  const countEl = document.getElementById('saved-count');
+  if (btn)     btn.classList.toggle('has-templates', _serverTemplates.length > 0);
+  if (countEl) countEl.textContent = _serverTemplates.length;
+  if (document.getElementById('saved-modal')?.classList.contains('open')) {
+    renderModalTemplates();
+  }
+}
+
+/* ── modal: open / close ────────────────────────────────────────── */
+function openSavedModal() {
+  activeModalTemplateId = null;
+  setModalDefaultDates();
+  renderModalTemplates();
+  document.getElementById('modal-gen-btn').disabled = true;
+  document.getElementById('modal-date-note').className = 'date-note';
+  document.getElementById('modal-date-note').textContent = 'Select a template on the left to get started.';
+  document.getElementById('saved-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSavedModal(e) {
+  if (e && e.target !== document.getElementById('saved-modal')) return;
+  document.getElementById('saved-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function setModalDefaultDates() {
+  const today = new Date();
+  const end   = today.toISOString().split('T')[0];
+  const start = new Date(today.getTime() - 30 * 86400000).toISOString().split('T')[0];
+  document.getElementById('modal-start').value = start;
+  document.getElementById('modal-end').value   = end;
+}
+
+/* ── modal: render template list ───────────────────────────────── */
+function renderModalTemplates() {
+  const list = document.getElementById('modal-tpl-list');
+  if (!list) return;
+
+  if (!_serverTemplates.length) {
+    list.innerHTML = '<div class="modal-empty">No saved templates yet.<br>Generate a report with AI, then click <strong>Save as Template</strong>.</div>';
+    return;
+  }
+
+  list.innerHTML = _serverTemplates.map(tpl => {
+    const snippet = tpl.original_prompt
+      ? esc(tpl.original_prompt.slice(0, 50) + (tpl.original_prompt.length > 50 ? '…' : ''))
+      : '';
+    const hasDate = tpl.has_granularity || !tpl.date_injection_needed || tpl.template_sql?.includes('{{DATE_FROM}}');
+    const badge = hasDate
+      ? '<span class="mtpl-badge date-on">📅 Date range</span>'
+      : '<span class="mtpl-badge date-off">Fixed query</span>';
+    const isActive = tpl.id === activeModalTemplateId ? ' active' : '';
+    return `
+      <div class="modal-tpl-card${isActive}" id="mtpl-${tpl.id}" onclick="selectModalTemplate('${tpl.id}')">
+        <div class="mtpl-radio"></div>
+        <div class="mtpl-info">
+          <div class="mtpl-name">${esc(tpl.name)}</div>
+          ${snippet ? `<div class="mtpl-query">${snippet}</div>` : ''}
+          ${badge}
+        </div>
+        <div class="mtpl-card-actions">
+          <button class="edit-btn" onclick="startRenameTemplate('${tpl.id}');event.stopPropagation()" title="Rename">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="del-btn" onclick="deleteTemplate('${tpl.id}');event.stopPropagation()" title="Delete">×</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ── modal: select template ─────────────────────────────────────── */
+function selectModalTemplate(id) {
+  activeModalTemplateId = id;
+  document.querySelectorAll('.modal-tpl-card').forEach(c => c.classList.remove('active'));
+  const card = document.getElementById(`mtpl-${id}`);
+  if (card) card.classList.add('active');
+
+  const tpl      = _serverTemplates.find(t => t.id === id);
+  const noteEl   = document.getElementById('modal-date-note');
+  const datesEl  = document.querySelector('.date-grid');
+  const genBtn   = document.getElementById('modal-gen-btn');
+
+  genBtn.disabled = false;
+
+  const hasDate = tpl?.template_sql?.includes('{{DATE_FROM}}');
+  if (hasDate) {
+    noteEl.className = 'date-note applies';
+    noteEl.textContent = '📅 This template supports date filtering. The date range above will be applied when generating the report.';
+    if (datesEl) datesEl.style.opacity = '1';
+  } else {
+    noteEl.className = 'date-note fixed';
+    noteEl.textContent = 'ℹ This template uses a fixed query without date parameters. It will run as originally saved.';
+    if (datesEl) datesEl.style.opacity = '.45';
+  }
+
+}
+
+/* ── modal: generate from saved ────────────────────────────────── */
+async function runSavedFromModal() {
+  if (busy || !activeModalTemplateId) return;
+  const tpl = _serverTemplates.find(t => t.id === activeModalTemplateId);
+  if (!tpl) return;
+
+  const start = document.getElementById('modal-start').value;
+  const end   = document.getElementById('modal-end').value;
+
+  if (start && end && start > end) {
+    showToast('Start date must be before end date');
+    return;
+  }
+  if (!start || !end) {
+    showToast('Please select a date range');
+    return;
+  }
+
+  closeSavedModal();
+  lastGeneratedSql = null;
+  setBusy(true, `Running "${tpl.name}"…`);
+  try {
+    const body = {
+      saved_query_id: tpl.id,
+      date_from: start,
+      date_to: end,
+    };
+    const data = await postJSON('/report/run-template', body);
+    renderReport(data);
+  } catch (err) {
+    showToast(err.message || 'Request failed');
+  } finally {
+    setBusy(false);
+  }
+}
+
+/* ── save form (after text-to-report) ──────────────────────────── */
+function showSaveForm() {
+  const form = document.getElementById('save-form');
+  if (!form) return;
+  form.classList.add('open');
+  const inp = document.getElementById('tpl-name');
+  if (inp) { inp.value = ''; inp.focus(); }
+}
+
+function closeSaveForm() {
+  const form = document.getElementById('save-form');
+  if (form) form.classList.remove('open');
+}
+
+async function confirmSave() {
+  const inp  = document.getElementById('tpl-name');
+  const name = (inp?.value || '').trim();
+  if (!name) { inp?.focus(); return; }
+  if (!lastGeneratedSql) { showToast('No SQL to save'); return; }
+
+  const saveBtn = document.querySelector('#save-form .action-btn');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Normalizing…'; }
+
+  try {
+    const tpl = await postJSON('/report/normalize-template', {
+      sql:   lastGeneratedSql,
+      query: lastQuery || '',
+      name,
+    });
+    _serverTemplates.unshift(tpl);
+    await loadSavedTemplates();
+    closeSaveForm();
+    showToast(`Template "${name}" saved!`, 'success');
+  } catch (err) {
+    showToast(err.message || 'Save failed');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '✓ Save'; }
+  }
+}
+
+async function deleteTemplate(id) {
+  if (activeModalTemplateId === id) activeModalTemplateId = null;
+  try {
+    await fetch(`/report/saved-templates/${id}`, { method: 'DELETE' });
+  } catch (e) { /* best-effort */ }
+  _serverTemplates = _serverTemplates.filter(t => t.id !== id);
+  await loadSavedTemplates();
+  if (document.getElementById('saved-modal')?.classList.contains('open')) {
+    const genBtn = document.getElementById('modal-gen-btn');
+    if (activeModalTemplateId === null && genBtn) genBtn.disabled = true;
+    const noteEl = document.getElementById('modal-date-note');
+    if (noteEl && !activeModalTemplateId) {
+      noteEl.className = 'date-note';
+      noteEl.textContent = 'Select a template on the left to get started.';
+    }
+  }
+}
+
+/* ── rename saved template ──────────────────────────────────────────── */
+function startRenameTemplate(id) {
+  const card = document.getElementById(`mtpl-${id}`);
+  if (!card) return;
+  const nameEl = card.querySelector('.mtpl-name');
+  if (!nameEl) return;
+  const original = nameEl.textContent;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = original;
+  input.className = 'mtpl-rename-input';
+  input.onclick = e => e.stopPropagation();
+
+  const restore = () => { nameEl.textContent = nameEl.textContent || original; input.replaceWith(nameEl); };
+
+  const commit = async () => {
+    const newName = input.value.trim();
+    if (!newName || newName === original) { nameEl.textContent = original; input.replaceWith(nameEl); return; }
+    try {
+      await fetch(`/report/saved-templates/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+      const tpl = _serverTemplates.find(t => t.id === id);
+      if (tpl) tpl.name = newName;
+      nameEl.textContent = newName;
+    } catch { nameEl.textContent = original; }
+    input.replaceWith(nameEl);
+  };
+
+  input.onkeydown = e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { restore(); }
+  };
+  input.onblur = commit;
+
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+/* ── utils ──────────────────────────────────────────────────────────── */
+function grow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+}
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+function str(v) { return v == null ? '' : String(v); }
+</script>
+</body>
+</html>

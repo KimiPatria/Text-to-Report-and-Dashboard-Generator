@@ -1,0 +1,16 @@
+BUSINESS RULES (apply to every query):
+# Copy this file to business_rules.txt and adapt to your domain.
+# Keep rules terse — every line is loaded into the SQL prompt on every request.
+
+1. DATES: varchar/text date cols → TO_DATE(col,'YYYY-MM-DD') for compares; date-typed cols → compare directly (col >= '2024-01-01'::date), never wrap in TO_DATE. "Last N months" on varchar: TO_DATE(col,'YYYY-MM-DD') >= CURRENT_DATE - INTERVAL 'N months'. Never use NOW()-INTERVAL on a varchar column.
+
+2. TABLE PREFERENCE: Prefer m_ (master/reference) tables over integration/sync tables unless source-system fields are needed.
+
+3. ACTIVE RECORDS: Add WHERE (is_deleted = 0 OR is_deleted IS NULL) when the column exists.
+
+4. HIERARCHY: <fill in your data hierarchy, e.g. Region → Site → Department → SubUnit>.
+
+5. KEY MAPPINGS:
+   "<term A>" → t_example_table (col_a, col_b)
+   "<term B>" → t_another_table (col_x, col_y)
+   "reference" → m_reference_table (code, name)

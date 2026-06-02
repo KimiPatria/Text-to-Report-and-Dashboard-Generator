@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPMS AI Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:          #f6f8fa;
+  --surface:     #ffffff;
+  --card:        #ffffff;
+  --card-h:      #f0f3f6;
+  --border:      #d0d7de;
+  --border-s:    #eaedf0;
+  --text:        #24292f;
+  --muted:       #57606a;
+  --accent:      #4f46e5;
+  --accent-dim:  rgba(79,70,229,.08);
+  --accent-glow: rgba(79,70,229,.22);
+  --error:       #cf222e;
+  --error-bg:    #fff0f0;
+  --r:           8px;
+  --font:        'Inter', system-ui, sans-serif;
+}
+
+html, body { height:100%; overflow:hidden; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  display: flex; flex-direction: column;
+  font-size: 14px; line-height: 1.5;
+}
+
+/* ── HEADER ──────────────────────────────────────────────────────── */
+.app-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 20px; height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; z-index: 10;
+}
+.logo-mark {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--accent); font-size: 15px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.app-name { font-weight: 700; font-size: 14px; letter-spacing: -.3px; }
+.app-sep  { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+#header-context {
+  font-size: 12px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 460px;
+}
+body.dash-mode #header-context { color: var(--text); font-weight: 600; font-size: 13px; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.provider-pill {
+  font-size: 11px; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 99px; padding: 2px 10px;
+}
+.fallback-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #ef4444;
+  transition: background .3s;
+  flex-shrink: 0;
+  cursor: default;
+}
+.fallback-dot.active { background: #22c55e; }
+
+/* ── MODE VISIBILITY ─────────────────────────────────────────────── */
+#dashboard-view { display: none; }
+#fab-area       { display: none; }
+body.dash-mode #chat-view      { display: none; }
+body.dash-mode #dashboard-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; position: relative; }
+body.dash-mode #fab-area       { display: flex; }
+#chat-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+/* ── CHAT AREA ───────────────────────────────────────────────────── */
+.chat-area {
+  flex: 1; overflow-y: auto;
+  padding: 28px 24px 12px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.chat-area::-webkit-scrollbar { width: 4px; }
+.chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── WELCOME / LANDING ───────────────────────────────────────────── */
+#welcome { margin: auto; text-align: center; padding: 36px 20px; max-width: 580px; }
+.welcome-logo { font-size: 44px; margin-bottom: 14px; }
+.welcome-title {
+  font-size: 26px; font-weight: 800; letter-spacing: -.5px;
+  background: linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 10px;
+}
+.welcome-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+
+/* Mode selection cards */
+.mode-cards { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+.mode-card {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 20px 22px; width: 220px;
+  cursor: pointer; text-align: left; text-decoration: none;
+  transition: border-color .15s, box-shadow .15s, transform .12s;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.mode-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 18px rgba(79,70,229,.14);
+  transform: translateY(-2px);
+}
+.mode-card-icon { font-size: 28px; }
+.mode-card-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.mode-card-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* Dashboard chat welcome (shown after selecting Dashboard Generator) */
+#dash-welcome { display: none; }
+#dash-welcome.visible { display: block; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 99px; padding: 6px 15px;
+  font-size: 12px; color: var(--muted); cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+  font-family: var(--font);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+/* ── CHAT MESSAGES ───────────────────────────────────────────────── */
+.msg { display: flex; gap: 12px; max-width: 860px; width: 100%; }
+.msg.user { margin-left: auto; flex-direction: row-reverse; max-width: 520px; }
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 2px;
+  background: var(--border); color: var(--muted);
+}
+.avatar.ai { background: var(--accent); color: #fff; }
+.bubble {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 11px 15px;
+  flex: 1; min-width: 0; font-size: 13px; line-height: 1.6;
+}
+.msg.user .bubble { background: var(--accent-dim); border-color: var(--accent-glow); }
+.dots { display: flex; gap: 5px; align-items: center; padding: 3px 0; }
+.dots span {
+  width: 7px; height: 7px; background: var(--accent);
+  border-radius: 50%; animation: pulse 1.2s ease-in-out infinite;
+}
+.dots span:nth-child(2) { animation-delay: .2s; }
+.dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes pulse {
+  0%,80%,100% { opacity:.3; transform:scale(.8); }
+  40%         { opacity:1;  transform:scale(1);  }
+}
+.loading-label { font-size: 12px; color: var(--muted); margin-top: 7px; }
+.error-bubble  { color: var(--error); font-size: 13px; }
+.bubble-info   { background: #f3f4f6; border: 1px solid #d1d5db; color: #6b7280; border-radius: 12px 12px 12px 3px; padding: 10px 14px; font-size: 13px; line-height: 1.6; }
+.bubble-warn   { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e;  border-radius: 12px 12px 12px 3px; padding: 10px 14px; font-size: 13px; line-height: 1.6; }
+.pipeline-msg  { border-radius: var(--r); padding: 20px 24px; font-size: 13px; line-height: 1.7; }
+.pipeline-info { background: #f3f4f6; border: 1px solid #d1d5db; color: #6b7280; }
+.pipeline-warn { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+
+/* ── INPUT FOOTER ────────────────────────────────────────────────── */
+.input-footer {
+  flex-shrink: 0; padding: 10px 24px 14px;
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+.input-bar {
+  display: flex; gap: 10px; align-items: flex-end;
+  max-width: 760px; margin: 0 auto;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 12px;
+  transition: border-color .2s;
+}
+.input-bar:focus-within { border-color: var(--accent); }
+textarea.goal-ta {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font-family: var(--font); font-size: 13px;
+  resize: none; line-height: 1.5; min-height: 22px; max-height: 120px;
+}
+textarea.goal-ta::placeholder { color: var(--muted); }
+.bar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.count-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
+input.w-count {
+  width: 40px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 5px;
+  color: var(--text); font-size: 11px; padding: 3px 5px;
+  text-align: center; font-family: var(--font);
+}
+.send-btn {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 7px; padding: 7px 16px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: var(--font); transition: background .15s, opacity .15s;
+  white-space: nowrap; display: flex; align-items: center; gap: 6px;
+}
+.send-btn:hover:not(:disabled) { background: #4338ca; }
+.send-btn:disabled { opacity: .4; cursor: not-allowed; }
+.hint { font-size: 11px; color: var(--muted); text-align: center; margin-top: 5px; }
+
+/* ── DASHBOARD VIEW ──────────────────────────────────────────────── */
+.dash-titlebar {
+  padding: 10px 18px; flex-shrink: 0;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+#dash-title { font-size: 15px; font-weight: 700; }
+.dash-meta  { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.badge {
+  font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 99px;
+  background: var(--accent-dim); border: 1px solid var(--accent-glow); color: var(--accent);
+}
+.meta-txt { font-size: 11px; color: var(--muted); }
+.dash-content { flex: 1; overflow-y: auto; padding: 14px; }
+.dash-content::-webkit-scrollbar { width: 4px; }
+.dash-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── GRID ────────────────────────────────────────────────────────── */
+.db-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: minmax(220px, auto);
+  gap: 12px;
+}
+
+/* ── WIDGET CARD ─────────────────────────────────────────────────── */
+.wcard {
+  background: var(--card); border: 1px solid var(--border-s);
+  border-radius: var(--r); display: flex; flex-direction: column;
+  overflow: hidden; transition: border-color .15s, box-shadow .15s;
+  cursor: pointer;
+}
+.wcard:hover { border-color: var(--accent); box-shadow: 0 2px 12px rgba(79,70,229,.10); }
+.wcard-head {
+  padding: 8px 12px; border-bottom: 1px solid var(--border-s);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.wtype {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-glow);
+  border-radius: 4px; padding: 2px 6px; flex-shrink: 0;
+}
+.wtitle {
+  font-size: 12px; font-weight: 600; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wtable-lbl { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+.winfo-icon { font-size: 13px; color: var(--border); flex-shrink: 0; transition: color .15s; }
+.wcard:hover .winfo-icon { color: var(--accent); }
+.wcard-body {
+  flex: 1; padding: 12px; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.chart-wrap { position: relative; flex: 1; min-height: 160px; }
+
+/* KPI */
+.kpi { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 6px; }
+.kpi-value { font-size: 46px; font-weight: 800; letter-spacing: -2px; color: var(--text); line-height: 1; }
+.kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+/* TABLE */
+.tbl-wrap { overflow: auto; flex: 1; border-radius: 4px; max-height: 260px; }
+.tbl-wrap::-webkit-scrollbar { height: 4px; width: 4px; }
+.tbl-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.data-tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+.data-tbl thead th {
+  background: var(--bg); color: var(--muted); font-size: 10px;
+  text-transform: uppercase; letter-spacing: .05em;
+  padding: 7px 10px; text-align: left;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; white-space: nowrap;
+}
+.data-tbl tbody td {
+  padding: 6px 10px; color: var(--text);
+  border-bottom: 1px solid var(--border-s); white-space: nowrap;
+}
+.data-tbl tbody tr:last-child td { border-bottom: none; }
+.data-tbl tbody tr:hover td { background: var(--card-h); }
+.tbl-more { font-size: 10px; color: var(--muted); text-align: center; padding: 5px; }
+
+/* NO-DATA */
+.no-data {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; height: 100%; min-height: 100px; color: var(--muted);
+}
+.no-data-icon { font-size: 20px; }
+.no-data-msg  { font-size: 11px; text-align: center; max-width: 200px; line-height: 1.4; }
+.no-data-hint { font-size: 10px; color: var(--accent); opacity: .8; }
+
+/* ── DASH LOADING OVERLAY ────────────────────────────────────────── */
+#dash-loading {
+  position: absolute; inset: 0;
+  background: rgba(246,248,250,.85); backdrop-filter: blur(3px);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px; z-index: 50;
+}
+#dash-loading p { font-size: 13px; color: var(--muted); }
+#dash-loading.hidden { display: none; }
+
+/* ── FAB ─────────────────────────────────────────────────────────── */
+#fab-area {
+  position: fixed; bottom: 24px; right: 24px; z-index: 200;
+  flex-direction: column; align-items: flex-end; gap: 10px;
+}
+#fab-btn {
+  width: 50px; height: 50px; border-radius: 50%;
+  background: var(--accent); color: #fff; border: none;
+  font-size: 26px; font-weight: 300; line-height: 1;
+  cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(79,70,229,.35);
+  transition: background .15s, box-shadow .15s;
+  transform-origin: center;
+}
+#fab-btn:hover { background: #4338ca; box-shadow: 0 6px 24px rgba(79,70,229,.5); }
+#fab-btn.is-open { transform: rotate(45deg); transition: transform .2s, background .15s; }
+
+/* POPOVER */
+#fab-popover {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; width: 360px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.12);
+  overflow: hidden; transform-origin: bottom right;
+}
+#fab-popover.pop-open { animation: popIn .18s ease; }
+#fab-popover.hidden { display: none; }
+@keyframes popIn {
+  from { opacity:0; transform:scale(.95) translateY(6px); }
+  to   { opacity:1; transform:scale(1)   translateY(0);   }
+}
+.pop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.pop-head span { font-size: 12px; font-weight: 600; }
+.pop-close {
+  background: none; border: none; color: var(--muted);
+  font-size: 18px; cursor: pointer; line-height: 1; padding: 0 2px;
+  transition: color .15s;
+}
+.pop-close:hover { color: var(--text); }
+.pop-body { padding: 12px 14px; }
+textarea.pop-ta {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-family: var(--font);
+  font-size: 13px; resize: none; padding: 9px 11px; outline: none;
+  min-height: 68px; max-height: 160px; line-height: 1.5;
+  transition: border-color .2s;
+}
+textarea.pop-ta:focus { border-color: var(--accent); }
+textarea.pop-ta::placeholder { color: var(--muted); }
+.pop-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-top: 1px solid var(--border); background: var(--bg);
+}
+.pop-count-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.pop-count-lbl input {
+  width: 40px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text); font-size: 11px; padding: 3px 5px;
+  text-align: center; font-family: var(--font); margin-left: 4px;
+}
+.pop-send {
+  margin-left: auto; background: var(--accent); color: #fff; border: none;
+  border-radius: 7px; padding: 7px 16px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: var(--font); white-space: nowrap;
+  transition: background .15s, opacity .15s;
+}
+.pop-send:hover:not(:disabled) { background: #4338ca; }
+.pop-send:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── WIDGET INFO DRAWER ──────────────────────────────────────────── */
+#widget-modal {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; justify-content: flex-end;
+}
+#widget-modal.hidden { display: none; }
+.modal-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.12); backdrop-filter: blur(1px);
+}
+.modal-panel {
+  position: relative; z-index: 1;
+  width: 420px; max-width: 90vw;
+  background: var(--surface); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,.07);
+  animation: slideIn .2s ease;
+}
+@keyframes slideIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.modal-head {
+  padding: 13px 18px; border-bottom: 1px solid var(--border);
+  background: var(--bg); display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.modal-head-title {
+  font-size: 13px; font-weight: 700; flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.modal-head .pop-close { font-size: 20px; }
+.modal-body { flex: 1; overflow-y: auto; padding: 14px; }
+.modal-body::-webkit-scrollbar { width: 4px; }
+.modal-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* info sections */
+.info-section {
+  margin-bottom: 14px; border: 1px solid var(--border-s);
+  border-radius: var(--r); overflow: hidden;
+}
+.info-section-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); padding: 7px 12px; border-bottom: 1px solid var(--border-s);
+  background: var(--bg);
+}
+.info-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 12px; border-bottom: 1px solid var(--border-s); font-size: 12px;
+}
+.info-row:last-child { border-bottom: none; }
+.info-lbl { color: var(--muted); width: 82px; flex-shrink: 0; padding-top: 1px; }
+.info-val { color: var(--text); word-break: break-all; flex: 1; }
+.info-val.mono { font-family: ui-monospace, 'Cascadia Code', monospace; font-size: 11px; }
+.info-warn {
+  background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: var(--r); padding: 9px 12px; margin-bottom: 14px;
+  color: #92400e; font-size: 11px; line-height: 1.5; display: flex; gap: 6px;
+}
+.info-error {
+  background: var(--error-bg); border: 1px solid #fecaca;
+  border-radius: var(--r); padding: 9px 12px; margin-bottom: 14px;
+  color: var(--error); font-size: 11px; line-height: 1.5; display: flex; gap: 6px;
+}
+.info-error span:first-child, .info-warn span:first-child { flex-shrink: 0; }
+.sql-block { margin-bottom: 14px; }
+.sql-block-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); margin-bottom: 6px;
+}
+.sql-pre {
+  background: var(--bg); border: 1px solid var(--border-s);
+  border-radius: var(--r); padding: 10px 12px;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 11px; line-height: 1.6; color: var(--text);
+  white-space: pre-wrap; word-break: break-all;
+  overflow-y: auto; max-height: 220px;
+}
+
+/* ── TOAST ───────────────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 86px; right: 24px;
+  background: var(--error); color: #fff;
+  padding: 10px 16px; border-radius: 8px;
+  font-size: 12px; z-index: 400; max-width: 300px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.15); animation: popIn .2s ease;
+}
+#toast.hidden { display: none; }
+
+/* ── FALLBACK NOTICE ─────────────────────────────────────────────── */
+.fallback-notice {
+  font-size: 11px; color: #92400e;
+  background: #fffbeb; border-bottom: 1px solid #fde68a;
+  padding: 5px 18px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 6px;
+}
+.fallback-notice.hidden { display: none; }
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────── */
+@media (max-width: 680px) {
+  .app-sep, #header-context { display: none; }
+  .chat-area { padding: 16px 12px 8px; }
+  .db-grid { grid-template-columns: 1fr; }
+  .wcard   { grid-column: 1/-1 !important; }
+  .input-footer { padding: 8px 12px 12px; }
+  .count-lbl { display: none; }
+  #fab-popover { width: calc(100vw - 32px); }
+  .modal-panel { width: 100vw; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo-mark">🌿</div>
+  <span class="app-name">EPMS AI Dashboard</span>
+  <div class="app-sep"></div>
+  <span id="header-context">Describe your dashboard in plain English</span>
+  <div class="header-right">
+    <span class="fallback-dot" id="fallback-dot" title="LLM Fallback: OFF"></span>
+    <span class="provider-pill" id="provider-pill">—</span>
+  </div>
+</header>
+
+<div id="chat-view">
+  <div class="chat-area" id="chat">
+    <div id="welcome">
+      <div class="welcome-logo">🌿</div>
+      <h1 class="welcome-title">EPMS AI Assistant</h1>
+      <p class="welcome-sub">
+        Connected to your live EPMS database. Choose a tool to get started.
+      </p>
+      <div class="mode-cards">
+        <div class="mode-card" onclick="selectDashboard()">
+          <div class="mode-card-icon">📊</div>
+          <div class="mode-card-name">Dashboard Generator</div>
+          <div class="mode-card-desc">Build interactive charts, KPIs, and data tables from plain English</div>
+        </div>
+        <a href="/report" class="mode-card">
+          <div class="mode-card-icon">📄</div>
+          <div class="mode-card-name">Report Generator</div>
+          <div class="mode-card-desc">Generate formal printable reports with presets or natural language</div>
+        </a>
+      </div>
+      <div id="dash-welcome">
+        <div class="chips">
+          <button class="chip" onclick="useChip(this)">FFB production overview by block and estate</button>
+          <button class="chip" onclick="useChip(this)">Employee attendance and workforce metrics</button>
+          <button class="chip" onclick="useChip(this)">Monthly harvest trends and yield analysis</button>
+          <button class="chip" onclick="useChip(this)">Supply chain and processing mill performance</button>
+          <button class="chip" onclick="useChip(this)">Cost and budget variance summary</button>
+        </div>
+      </div>
+    </div>
+    <div id="scroll-end"></div>
+  </div>
+  <div class="input-footer">
+    <div class="input-bar">
+      <textarea id="goal" class="goal-ta" rows="1"
+        placeholder="e.g. Show me FFB production performance by block with monthly trends…"></textarea>
+      <div class="bar-right">
+        <span class="count-lbl">Widgets</span>
+        <input type="number" id="max-widgets" class="w-count" value="5" min="3" max="8">
+        <button id="send-btn" class="send-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+          <span>Generate</span>
+        </button>
+      </div>
+    </div>
+    <p class="hint">Ctrl + Enter to generate &nbsp;·&nbsp; Connected to your live EPMS database</p>
+  </div>
+</div>
+
+<div id="dashboard-view">
+  <div id="dash-fallback-notice" class="fallback-notice hidden">
+    ⚠ Smart search was used to find relevant data for this query.
+  </div>
+  <div class="dash-titlebar">
+    <span id="dash-title"></span>
+    <div class="dash-meta">
+      <span id="dash-badge" class="badge"></span>
+      <span id="dash-tables" class="meta-txt"></span>
+    </div>
+  </div>
+  <div class="dash-content">
+    <div class="db-grid" id="dash-grid"></div>
+  </div>
+  <div id="dash-loading" class="hidden">
+    <div class="dots"><span></span><span></span><span></span></div>
+    <p>Generating new dashboard…</p>
+  </div>
+</div>
+
+<div id="fab-area">
+  <div id="fab-popover" class="hidden">
+    <div class="pop-head">
+      <span>New or modified dashboard</span>
+      <button class="pop-close" id="pop-close-btn" title="Close">✕</button>
+    </div>
+    <div class="pop-body">
+      <textarea id="fab-goal" class="pop-ta" rows="3"
+        placeholder="Describe your dashboard…"></textarea>
+    </div>
+    <div class="pop-foot">
+      <label class="pop-count-lbl">Widgets
+        <input type="number" id="fab-max" value="5" min="3" max="8">
+      </label>
+      <button id="fab-send" class="pop-send">Generate</button>
+    </div>
+  </div>
+  <button id="fab-btn" title="New dashboard">+</button>
+</div>
+
+<!-- Widget info drawer -->
+<div id="widget-modal" class="hidden">
+  <div class="modal-overlay" id="modal-overlay"></div>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <span class="modal-head-title" id="modal-title">Widget Info</span>
+      <button class="pop-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+'use strict';
+
+let busy        = false;
+let lastGoal    = '';
+let lastMaxW    = 5;
+let currentData = null;
+const chartMap  = new Map();
+
+const PALETTE = [
+  '#818cf8','#34d399','#fbbf24','#f87171',
+  '#60a5fa','#a78bfa','#fb923c','#2dd4bf',
+];
+
+const CJ_TOOLTIP = {
+  backgroundColor: '#ffffff', borderColor: '#d0d7de', borderWidth: 1,
+  titleColor: '#24292f', bodyColor: '#57606a', padding: 10,
+};
+const CJ_GRID  = 'rgba(208,215,222,.65)';
+const CJ_TICK  = '#57606a';
+
+/* ── landing: select dashboard mode ──────────────────────────────── */
+function selectDashboard() {
+  document.querySelector('.mode-cards').style.display = 'none';
+  document.getElementById('dash-welcome').classList.add('visible');
+  document.getElementById('goal').disabled = false;
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('goal').focus();
+}
+
+/* ── boot ─────────────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  // Disable input until user selects Dashboard mode from landing
+  document.getElementById('goal').disabled = true;
+  document.getElementById('send-btn').disabled = true;
+
+  const ta = document.getElementById('goal');
+  ta.addEventListener('input', function() { grow(this); });
+  ta.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSend(); }
+  });
+
+  const pTa = document.getElementById('fab-goal');
+  pTa.addEventListener('input', function() { grow(this); });
+  pTa.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleFabSend(); }
+  });
+
+  document.getElementById('send-btn').addEventListener('click', handleSend);
+
+  // FAB — stopPropagation so the document outside-click handler can't immediately close it
+  document.getElementById('fab-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    togglePopover();
+  });
+  document.getElementById('pop-close-btn').addEventListener('click', closePopover);
+  document.getElementById('fab-send').addEventListener('click', handleFabSend);
+
+  // close popover when clicking outside #fab-area
+  document.addEventListener('click', e => {
+    const pop  = document.getElementById('fab-popover');
+    const area = document.getElementById('fab-area');
+    if (!pop.classList.contains('hidden') && !area.contains(e.target)) {
+      closePopover();
+    }
+  });
+
+  // widget modal close
+  document.getElementById('modal-overlay').addEventListener('click', closeWidgetModal);
+  document.getElementById('modal-close').addEventListener('click', closeWidgetModal);
+
+  fetch('/health')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d) document.getElementById('provider-pill').textContent = d.provider || 'Connected'; })
+    .catch(() => {});
+});
+
+function grow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+/* ── chips ────────────────────────────────────────────────────────── */
+function useChip(btn) {
+  const ta = document.getElementById('goal');
+  ta.value = btn.textContent.trim();
+  grow(ta); ta.focus();
+}
+
+/* ── chat send ────────────────────────────────────────────────────── */
+async function handleSend() {
+  const ta   = document.getElementById('goal');
+  if (ta.disabled) return;
+  const goal = ta.value.trim();
+  if (!goal || busy) return;
+
+  const maxW = clampW(document.getElementById('max-widgets').value);
+  lastGoal = goal; lastMaxW = maxW;
+  busy = true; setChatBusy(true);
+  setFallbackDot(false);
+
+  document.getElementById('welcome')?.remove();
+  addUserMsg(goal);
+  ta.value = ''; ta.style.height = 'auto';
+  const loadEl = addLoading(); scrollEnd();
+
+  try {
+    const data = await generate(goal, maxW);
+    loadEl.remove();
+    if (data.error) {
+      addPipelineMsg(data.answer, data.error);
+    } else {
+      enterDashMode(data);
+    }
+    scrollEnd();
+  } catch (err) {
+    loadEl.remove();
+    addError(typeof err === 'string' ? err : err.message);
+    scrollEnd();
+  } finally {
+    busy = false; setChatBusy(false);
+  }
+}
+
+/* ── fab send ─────────────────────────────────────────────────────── */
+async function handleFabSend() {
+  const ta   = document.getElementById('fab-goal');
+  const goal = ta.value.trim();
+  if (!goal || busy) return;
+
+  const maxW = clampW(document.getElementById('fab-max').value);
+  lastGoal = goal; lastMaxW = maxW;
+  busy = true;
+  document.getElementById('fab-send').disabled = true;
+  setFallbackDot(false); closePopover(); showDashLoading();
+
+  try {
+    const data = await generate(goal, maxW);
+    if (data.error) {
+      showDashError(data);
+    } else {
+      rebuildDashboard(data);
+    }
+  } catch (err) {
+    showToast(typeof err === 'string' ? err : err.message);
+  } finally {
+    hideDashLoading();
+    busy = false;
+    document.getElementById('fab-send').disabled = false;
+  }
+}
+
+/* ── fallback dot ─────────────────────────────────────────────────── */
+function setFallbackDot(active) {
+  const dot = document.getElementById('fallback-dot');
+  if (!dot) return;
+  dot.classList.toggle('active', !!active);
+  dot.title = active ? 'LLM Fallback: ON' : 'LLM Fallback: OFF';
+}
+
+/* ── fetch ────────────────────────────────────────────────────────── */
+async function generate(goal, maxW) {
+  const res = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ goal, max_widgets: maxW }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Server error ${res.status}`);
+  }
+  return res.json();
+}
+
+/* ── mode helpers ─────────────────────────────────────────────────── */
+function enterDashMode(data) {
+  buildDashboard(data);
+  document.body.className = 'dash-mode';
+  updateProvider(data);
+}
+function rebuildDashboard(data) {
+  buildDashboard(data);
+  updateProvider(data);
+}
+
+/* ── build dashboard ──────────────────────────────────────────────── */
+function buildDashboard(data) {
+  currentData = data;
+  chartMap.forEach(c => c.destroy()); chartMap.clear();
+
+  document.getElementById('dash-title').textContent     = data.title || 'Dashboard';
+  document.getElementById('header-context').textContent = data.title || 'Dashboard';
+  document.getElementById('dash-badge').textContent     = data.provider_label || data.provider || '';
+  document.getElementById('dash-tables').textContent    = 'Tables: ' + (data.tables_used || []).join(', ');
+
+  const notice = document.getElementById('dash-fallback-notice');
+  if (notice) notice.classList.toggle('hidden', !data.used_llm_fallback);
+  setFallbackDot(data.used_llm_fallback);
+
+  const grid = document.getElementById('dash-grid');
+  grid.innerHTML = '';
+  (data.widgets || []).forEach((widget, idx) => {
+    const wd = (data.widget_data || {})[widget.id] || {};
+    grid.appendChild(buildCard(widget, wd, `cv-${idx}`, idx));
+  });
+
+  requestAnimationFrame(() => {
+    (data.widgets || []).forEach((widget, idx) => {
+      const wd      = (data.widget_data || {})[widget.id] || {};
+      const hasData = !wd.error && wd.rows && wd.rows.length > 0;
+      const isChart = !['big_number', 'table'].includes(widget.chart_type);
+      if (hasData && isChart) initChart(widget, wd, `cv-${idx}`);
+    });
+  });
+}
+
+/* ── widget card ──────────────────────────────────────────────────── */
+function buildCard(widget, wd, cid, idx) {
+  const card = document.createElement('div');
+  card.className = 'wcard';
+  card.addEventListener('click', () => showWidgetInfo(idx));
+
+  const w = Math.min(Math.max(parseInt((widget.grid || {}).w) || 6, 1), 12);
+  card.style.gridColumn = `span ${w}`;
+
+  const hasData = !wd.error && wd.rows && wd.rows.length > 0;
+  card.innerHTML = `
+    <div class="wcard-head">
+      <span class="wtype">${esc(widget.chart_type)}</span>
+      <span class="wtitle">${esc(widget.title)}</span>
+      <span class="wtable-lbl">${esc(widget.table)}</span>
+      <span class="winfo-icon" title="Click to inspect">ⓘ</span>
+    </div>
+    <div class="wcard-body">${widgetBody(widget, wd, hasData, cid)}</div>`;
+  return card;
+}
+
+function widgetBody(widget, wd, hasData, cid) {
+  if (!hasData) {
+    const msg = wd.error || 'No data returned';
+    return `<div class="no-data">
+      <span class="no-data-icon">${wd.error ? '⚠' : '○'}</span>
+      <span class="no-data-msg">${esc(msg)}</span>
+      <span class="no-data-hint">Click ⓘ to inspect</span>
+    </div>`;
+  }
+  if (widget.chart_type === 'big_number') {
+    const row0 = wd.rows[0] || {};
+    const col = (widget.y_field && widget.y_field in row0) ? widget.y_field : wd.columns[0];
+    return `<div class="kpi">
+      <div class="kpi-value">${fmtNum(row0[col])}</div>
+      <div class="kpi-label">${esc(col || '')}</div>
+    </div>`;
+  }
+  if (widget.chart_type === 'table') return mkTable(wd.columns, wd.rows);
+  return `<div class="chart-wrap"><canvas id="${cid}"></canvas></div>`;
+}
+
+function mkTable(cols, rows) {
+  const MAX  = 60;
+  const shown = rows.slice(0, MAX);
+  const ths  = cols.map(c => `<th>${esc(String(c))}</th>`).join('');
+  const trs  = shown.map(r =>
+    `<tr>${cols.map(c => `<td>${esc(str(r[c]))}</td>`).join('')}</tr>`
+  ).join('');
+  const more = rows.length > MAX
+    ? `<div class="tbl-more">Showing ${MAX} of ${rows.length} rows</div>` : '';
+  return `<div class="tbl-wrap">
+    <table class="data-tbl"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>
+  </div>${more}`;
+}
+
+/* ── Chart.js ─────────────────────────────────────────────────────── */
+function initChart(widget, wd, cid) {
+  const canvas = document.getElementById(cid);
+  if (!canvas) return;
+
+  const rows = wd.rows, cols = wd.columns, type = widget.chart_type;
+  const row0 = rows[0] || {};
+  const xF   = (widget.x_field  && widget.x_field  in row0) ? widget.x_field  : cols[0];
+  const yF   = (widget.y_field  && widget.y_field  in row0) ? widget.y_field  : (cols.length > 1 ? cols[cols.length - 1] : cols[0]);
+  const gF   = (widget.group_by && widget.group_by in row0) ? widget.group_by : xF;
+
+  const base = {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 350 },
+    plugins: { legend: { display: false }, tooltip: CJ_TOOLTIP },
+  };
+  const axes = {
+    x: {
+      grid: { color: CJ_GRID },
+      ticks: { color: CJ_TICK, font: { size: 10 }, maxTicksLimit: 8,
+        callback(v) { const l = String(this.getLabelForValue(v)); return l.length > 14 ? l.slice(0,13)+'…' : l; } },
+    },
+    y: { grid: { color: CJ_GRID }, ticks: { color: CJ_TICK, font: { size: 10 } } },
+  };
+
+  let cfg;
+  if (type === 'bar') {
+    cfg = { type: 'bar',
+      data: { labels: rows.map(r => str(r[xF])),
+        datasets: [{ label: yF, data: rows.map(r => toNum(r[yF])),
+          backgroundColor: PALETTE[0]+'bb', borderColor: PALETTE[0], borderWidth: 1, borderRadius: 3 }] },
+      options: { ...base, scales: axes } };
+  } else if (type === 'line') {
+    cfg = { type: 'line',
+      data: { labels: rows.map(r => str(r[xF])),
+        datasets: [{ label: yF, data: rows.map(r => toNum(r[yF])),
+          borderColor: PALETTE[0], backgroundColor: PALETTE[0]+'22',
+          borderWidth: 2, fill: true, tension: 0.35, pointRadius: 3, pointHoverRadius: 5 }] },
+      options: { ...base, scales: axes } };
+  } else if (type === 'pie') {
+    cfg = { type: 'doughnut',
+      data: { labels: rows.map(r => str(r[gF])),
+        datasets: [{ data: rows.map(r => toNum(r[yF])),
+          backgroundColor: PALETTE.slice(0, rows.length),
+          borderColor: '#ffffff', borderWidth: 2, hoverOffset: 6 }] },
+      options: { ...base, plugins: { ...base.plugins,
+        legend: { display: true, position: 'right',
+          labels: { color: CJ_TICK, font: { size: 10 }, boxWidth: 10, padding: 10 } } } } };
+  } else if (type === 'scatter') {
+    cfg = { type: 'scatter',
+      data: { datasets: [{ label: `${xF} vs ${yF}`,
+        data: rows.map(r => ({ x: toNum(r[xF]), y: toNum(r[yF]) })),
+        backgroundColor: PALETTE[0]+'99', borderColor: PALETTE[0], pointRadius: 5, pointHoverRadius: 7 }] },
+      options: { ...base, scales: axes } };
+  }
+
+  if (!cfg) return;
+  if (chartMap.has(cid)) chartMap.get(cid).destroy();
+  chartMap.set(cid, new Chart(canvas, cfg));
+}
+
+/* ── widget info drawer ───────────────────────────────────────────── */
+function showWidgetInfo(idx) {
+  if (!currentData) return;
+  const widget = currentData.widgets[idx];
+  const wd     = (currentData.widget_data || {})[widget.id] || {};
+
+  document.getElementById('modal-title').textContent = widget.title;
+
+  let html = '';
+
+  // config block
+  html += `<div class="info-section">
+    <div class="info-section-title">Widget Configuration</div>
+    <div class="info-row"><span class="info-lbl">Type</span><span class="info-val"><span class="badge">${esc(widget.chart_type)}</span></span></div>
+    <div class="info-row"><span class="info-lbl">Table</span><span class="info-val mono">${esc(widget.table || '—')}</span></div>`;
+  if (widget.x_field)  html += `<div class="info-row"><span class="info-lbl">X axis</span><span class="info-val mono">${esc(widget.x_field)}</span></div>`;
+  if (widget.y_field)  html += `<div class="info-row"><span class="info-lbl">Y value</span><span class="info-val mono">${esc(widget.y_field)}</span></div>`;
+  if (widget.group_by) html += `<div class="info-row"><span class="info-lbl">Group by</span><span class="info-val mono">${esc(widget.group_by)}</span></div>`;
+  html += `</div>`;
+
+  // data result block
+  if (wd.error) {
+    html += `<div class="info-error"><span>⚠</span><span>${esc(wd.error)}</span></div>`;
+  } else {
+    const rowCount = wd.rows ? wd.rows.length : 0;
+    const cols     = wd.columns || [];
+    html += `<div class="info-section">
+      <div class="info-section-title">Query Result</div>
+      <div class="info-row"><span class="info-lbl">Rows</span><span class="info-val">${rowCount}</span></div>
+      <div class="info-row"><span class="info-lbl">Columns</span><span class="info-val mono">${cols.length ? cols.map(esc).join(', ') : '—'}</span></div>
+    </div>`;
+
+    // mismatch warnings
+    const xMiss = widget.x_field && cols.length && !cols.includes(widget.x_field);
+    const yMiss = widget.y_field && cols.length && !cols.includes(widget.y_field);
+    if (xMiss || yMiss) {
+      html += `<div class="info-warn"><span>⚠</span><span>`;
+      if (xMiss) html += `<b>x_field</b> "${esc(widget.x_field)}" not in returned columns. `;
+      if (yMiss) html += `<b>y_field</b> "${esc(widget.y_field)}" not in returned columns. `;
+      html += `Available: <code>${cols.map(esc).join(', ')}</code></span></div>`;
+    }
+  }
+
+  // SQL block
+  if (widget.sql_hint) {
+    html += `<div class="sql-block">
+      <div class="sql-block-label">SQL Query</div>
+      <pre class="sql-pre">${esc(widget.sql_hint)}</pre>
+    </div>`;
+  } else {
+    html += `<div class="info-error"><span>ℹ</span><span>No SQL hint was provided by the LLM for this widget.</span></div>`;
+  }
+
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('widget-modal').classList.remove('hidden');
+}
+
+function closeWidgetModal() {
+  document.getElementById('widget-modal').classList.add('hidden');
+}
+
+/* ── chat helpers ─────────────────────────────────────────────────── */
+function addUserMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.innerHTML = `<div class="avatar">You</div><div class="bubble">${esc(text)}</div>`;
+  document.getElementById('chat').insertBefore(el, document.getElementById('scroll-end'));
+}
+function addLoading() {
+  const el = document.createElement('div');
+  el.className = 'msg';
+  el.innerHTML = `<div class="avatar ai">AI</div>
+    <div class="bubble"><div class="dots"><span></span><span></span><span></span></div>
+    <div class="loading-label">Generating your dashboard…</div></div>`;
+  document.getElementById('chat').insertBefore(el, document.getElementById('scroll-end'));
+  return el;
+}
+function addError(text) {
+  const el = document.createElement('div');
+  el.className = 'msg';
+  el.innerHTML = `<div class="avatar ai">AI</div><div class="bubble error-bubble">⚠ ${esc(text)}</div>`;
+  document.getElementById('chat').insertBefore(el, document.getElementById('scroll-end'));
+}
+function addPipelineMsg(text, kind) {
+  const el = document.createElement('div');
+  el.className = 'msg';
+  const cls = kind === 'off_domain' ? 'bubble-info' : 'bubble-warn';
+  el.innerHTML = `<div class="avatar ai">AI</div><div class="${cls}">${esc(text)}</div>`;
+  document.getElementById('chat').insertBefore(el, document.getElementById('scroll-end'));
+}
+function showDashError(data) {
+  const cls  = data.error === 'off_domain' ? 'pipeline-info' : 'pipeline-warn';
+  const grid = document.getElementById('dash-grid');
+  if (grid) grid.innerHTML = `<div class="pipeline-msg ${cls}" style="grid-column:1/-1;margin:0">${esc(data.answer)}</div>`;
+}
+function scrollEnd() { document.getElementById('scroll-end')?.scrollIntoView({ behavior: 'smooth' }); }
+function setChatBusy(v) {
+  const btn = document.getElementById('send-btn');
+  btn.disabled = v;
+  const sp = btn.querySelector('span');
+  if (sp) sp.textContent = v ? 'Generating…' : 'Generate';
+}
+
+/* ── FAB / popover ────────────────────────────────────────────────── */
+function togglePopover() {
+  const pop = document.getElementById('fab-popover');
+  const fab = document.getElementById('fab-btn');
+  if (pop.classList.contains('hidden')) {
+    pop.classList.remove('hidden');
+    pop.classList.add('pop-open');
+    fab.classList.add('is-open');
+    const ta = document.getElementById('fab-goal');
+    ta.value = lastGoal;
+    document.getElementById('fab-max').value = lastMaxW;
+    grow(ta); ta.focus();
+    ta.selectionStart = ta.selectionEnd = ta.value.length;
+  } else {
+    closePopover();
+  }
+}
+function closePopover() {
+  const pop = document.getElementById('fab-popover');
+  pop.classList.add('hidden');
+  pop.classList.remove('pop-open');
+  document.getElementById('fab-btn').classList.remove('is-open');
+}
+
+/* ── dash overlay ─────────────────────────────────────────────────── */
+function showDashLoading() { document.getElementById('dash-loading').classList.remove('hidden'); }
+function hideDashLoading()  { document.getElementById('dash-loading').classList.add('hidden'); }
+
+/* ── toast ────────────────────────────────────────────────────────── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = '⚠ ' + msg;
+  t.classList.remove('hidden');
+  clearTimeout(showToast._tid);
+  showToast._tid = setTimeout(() => t.classList.add('hidden'), 5000);
+}
+
+/* ── provider ─────────────────────────────────────────────────────── */
+function updateProvider(data) {
+  const lbl = data.provider_label || data.provider || '';
+  document.getElementById('provider-pill').textContent = lbl;
+  document.getElementById('dash-badge').textContent = lbl;
+}
+
+/* ── utils ────────────────────────────────────────────────────────── */
+function clampW(v) { return Math.min(Math.max(parseInt(v) || 5, 3), 8); }
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+function str(v)   { return v == null ? '' : String(v); }
+function toNum(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function fmtNum(v) {
+  if (v == null) return 'N/A';
+  const n = parseFloat(v);
+  if (isNaN(n)) return String(v);
+  if (Math.abs(n) >= 1e9) return (n/1e9).toFixed(2)+'B';
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2)+'M';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(1)+'K';
+  return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+</script>
+</body>
+</html>
