@@ -1,0 +1,31 @@
+1. DATE: VARCHAR col→TO_DATE(col,'YYYY-MM-DD'); date col→direct ISO/::date, never TO_DATE. "Last 3 months" on VARCHAR: TO_DATE(col,'YYYY-MM-DD')>=(CURRENT_DATE-INTERVAL '90 days').
+
+2. TABLES: Prefer m_ over ZEPMS_ unless SAP fields needed.
+
+3. DELETED: Add WHERE (is_deleted=0 OR is_deleted IS NULL) ONLY if is_deleted appears in that table's DDL. Never add otherwise.
+
+4. HIERARCHY: Company→m_estate→m_division→m_block→m_tph
+
+5. OPH DATE: Time-range filters→oph_created_date (harvest date, type date). Never oph_approved_date.
+
+6. GRADING: t_oph queries must include all: bunches_ripe, bunches_unripe, bunches_overripe, bunches_underripe, bunches_rotten.
+
+7. MAPPINGS:
+   work/activity cost→t_workdone(workdone_division_code,workdone_mandays,workdone_qty)
+   harvest→t_oph(bunches_total,bunches_ripe)
+   delivery/transport→t_fdn(fdn_actual_tonnage)
+   attendance→t_attendance(attendance_code,attendance_date)
+   overtime→t_overtime(overtime_duration,overtime_mandays)
+   goods issue/material→tr_gi_header+tr_gi_detail
+   PO/purchase order→m_po_header(m_order_detail_net_value=total cost)
+   division→m_division(division_code,division_name)
+   estate→m_estate(estate_code,estate_name)
+   janjang/bunch count→t_oph(bunches_total); t_abw=avg weight only, not count
+   unripe/janjang mentah→t_oph(bunches_unripe)
+
+8. CASTS:
+   harvesting_plan_ha(t_harvesting_plan): VARCHAR→::NUMERIC; NULLIF(...,0) before division.
+   coconut_harvesting_plan_ha(t_coconut_harvesting_plan): same.
+   oph_lat,oph_long,cp_lat,cp_long: VARCHAR→::NUMERIC only for geospatial math.
+
+9. LIKE: workdone_activity_name, activity_name, worktype_name store composite values — use LIKE '%KEYWORD%' (uppercase). Exact = only for code columns.

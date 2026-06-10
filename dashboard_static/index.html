@@ -57,6 +57,14 @@ body {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 460px;
 }
 body.dash-mode #header-context { color: var(--text); font-weight: 600; font-size: 13px; }
+.app-nav { display: flex; align-items: center; gap: 2px; margin-left: 4px; }
+.app-nav a {
+  font-size: 12px; font-weight: 500; color: var(--muted);
+  text-decoration: none; padding: 4px 10px; border-radius: 6px;
+  transition: background .15s, color .15s; white-space: nowrap;
+}
+.app-nav a:hover { background: var(--accent-dim); color: var(--accent); }
+.app-nav a.nav-active { background: var(--accent-dim); color: var(--accent); font-weight: 600; }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .provider-pill {
   font-size: 11px; color: var(--muted);
@@ -495,6 +503,11 @@ textarea.pop-ta::placeholder { color: var(--muted); }
   <span class="app-name">EPMS AI Dashboard</span>
   <div class="app-sep"></div>
   <span id="header-context">Describe your dashboard in plain English</span>
+  <nav class="app-nav">
+    <a href="/" class="nav-active">Dashboard</a>
+    <a href="/report">Report</a>
+    <a href="/chat">Chat</a>
+  </nav>
   <div class="header-right">
     <span class="fallback-dot" id="fallback-dot" title="LLM Fallback: OFF"></span>
     <span class="provider-pill" id="provider-pill">—</span>

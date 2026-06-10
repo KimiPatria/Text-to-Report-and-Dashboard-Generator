@@ -375,16 +375,22 @@ def generate_text_report(req: GenerateReportRequest):
     ok, reason = validate(sql)
     if not ok:
         log.info("[report/generate] SQL validation failed: %s", reason)
-        return JSONResponse(content=_err_resp("no_data", used_llm_fallback))
+        resp = _err_resp("no_data", used_llm_fallback)
+        resp["generated_sql"] = sql
+        return JSONResponse(content=resp)
 
     # 6. Execute
     cols, rows, err = _execute(sql)
     if err:
-        log.info("[report/generate] SQL execution error (hidden from user)")
-        return JSONResponse(content=_err_resp("no_data", used_llm_fallback))
+        log.info("[report/generate] SQL execution error")
+        resp = _err_resp("no_data", used_llm_fallback)
+        resp["generated_sql"] = sql
+        return JSONResponse(content=resp)
     if not rows:
         log.info("[report/generate] query returned 0 rows")
-        return JSONResponse(content=_err_resp("no_data", used_llm_fallback))
+        resp = _err_resp("no_data", used_llm_fallback)
+        resp["generated_sql"] = sql
+        return JSONResponse(content=resp)
 
     log.info("[report/generate] done — %d rows", len(rows))
     return ReportResponse(

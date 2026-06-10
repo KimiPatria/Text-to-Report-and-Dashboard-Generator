@@ -52,6 +52,14 @@ body {
 .app-name { font-weight: 700; font-size: 14px; letter-spacing: -.3px; }
 .app-sep  { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
 .app-sub  { font-size: 12px; color: var(--muted); }
+.app-nav { display: flex; align-items: center; gap: 2px; margin-left: 4px; }
+.app-nav a {
+  font-size: 12px; font-weight: 500; color: var(--muted);
+  text-decoration: none; padding: 4px 10px; border-radius: 6px;
+  transition: background .15s, color .15s; white-space: nowrap;
+}
+.app-nav a:hover { background: var(--accent-dim); color: var(--accent); }
+.app-nav a.nav-active { background: var(--accent-dim); color: var(--accent); font-weight: 600; }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .back-link {
   font-size: 12px; color: var(--muted); text-decoration: none;
@@ -312,6 +320,14 @@ input[type=range] {
   text-align: center; font-size: 10px; color: var(--muted);
   padding: 6px 32px 14px;
 }
+.show-all-btn {
+  margin-left: 8px; font-size: 10px; color: var(--accent);
+  background: none; border: 1px solid var(--accent);
+  border-radius: 4px; padding: 2px 8px;
+  cursor: pointer; font-family: var(--font);
+}
+.show-all-btn:hover { background: var(--accent); color: #fff; }
+.extra-row { display: none; }
 
 /* SQL toggle */
 .sql-toggle-wrap { padding: 0 32px 14px; }
@@ -582,7 +598,8 @@ input[type="date"]:focus { border-color: var(--accent); }
   .report-header { padding: 16px 24px; }
   .report-table-wrap { padding: 0 24px 16px; overflow: visible; }
   .report-section-head { padding-left: 24px; }
-  .section-more { padding-left: 24px; }
+  .section-more { display: none !important; }
+  .extra-row { display: table-row !important; }
 }
 </style>
 </head>
@@ -593,8 +610,12 @@ input[type="date"]:focus { border-color: var(--accent); }
   <span class="app-name">EPMS AI</span>
   <div class="app-sep" style="width:1px;height:16px;background:var(--border);flex-shrink:0;"></div>
   <span class="app-sub">Report Generator</span>
+  <nav class="app-nav">
+    <a href="/">Dashboard</a>
+    <a href="/report" class="nav-active">Report</a>
+    <a href="/chat">Chat</a>
+  </nav>
   <div class="header-right">
-    <a href="/" class="back-link">← Dashboard</a>
     <span class="fallback-dot" id="fallback-dot" title="LLM Fallback: OFF"></span>
     <span class="provider-pill" id="provider-pill">—</span>
   </div>
@@ -852,7 +873,13 @@ async function runTextReport() {
 function showPipelineError(data) {
   const doc = document.getElementById('report-doc');
   const cls = data.error === 'off_domain' ? 'pipeline-info' : 'pipeline-warn';
-  doc.innerHTML = `<div class="pipeline-msg ${cls}">${esc(data.answer)}</div>`;
+  const sqlHtml = data.generated_sql
+    ? `<div style="margin-top:12px">
+        <button class="sql-toggle-btn" onclick="toggleSql(this)">Show SQL</button>
+        <pre class="sql-block">${esc(data.generated_sql)}</pre>
+       </div>`
+    : '';
+  doc.innerHTML = `<div class="pipeline-msg ${cls}">${esc(data.answer)}${sqlHtml}</div>`;
   showDoc();
 }
 
@@ -979,15 +1006,14 @@ function buildSection(sec, num) {
   const cols = sec.columns || [];
   const rows = sec.rows    || [];
   const MAX  = 200;
-  const shown = rows.slice(0, MAX);
 
   const ths = cols.map(c => `<th>${esc(String(c))}</th>`).join('');
-  const trs = shown.map(r =>
-    `<tr>${cols.map(c => `<td>${esc(str(r[c]))}</td>`).join('')}</tr>`
+  const trs = rows.map((r, i) =>
+    `<tr${i >= MAX ? ' class="extra-row"' : ''}>${cols.map(c => `<td>${esc(str(r[c]))}</td>`).join('')}</tr>`
   ).join('');
 
   const moreMsg = rows.length > MAX
-    ? `<div class="section-more">Showing first ${MAX} of ${rows.length.toLocaleString()} records</div>` : '';
+    ? `<div class="section-more" id="more-${num}">Showing first ${MAX} of ${rows.length.toLocaleString()} records <button class="show-all-btn" onclick="showAllRows(${num})">Show all ${rows.length.toLocaleString()}</button></div>` : '';
 
   const sqlHtml = sec.sql ? `
     <div class="sql-toggle-wrap">
@@ -1005,7 +1031,7 @@ function buildSection(sec, num) {
       <div class="report-table-wrap">
         <table class="report-table">
           <thead><tr>${ths}</tr></thead>
-          <tbody>${trs}</tbody>
+          <tbody id="tbody-${num}">${trs}</tbody>
         </table>
       </div>
       ${moreMsg}
@@ -1018,6 +1044,15 @@ function toggleSql(btn) {
   const block = btn.nextElementSibling;
   const open  = block.classList.toggle('open');
   btn.textContent = open ? 'Hide SQL' : 'Show SQL';
+}
+
+/* ── show all rows ──────────────────────────────────────────────────── */
+function showAllRows(num) {
+  document.querySelectorAll(`#tbody-${num} .extra-row`).forEach(tr => {
+    tr.style.display = '';
+  });
+  const moreEl = document.getElementById(`more-${num}`);
+  if (moreEl) moreEl.style.display = 'none';
 }
 
 /* ── visibility helpers ─────────────────────────────────────────────── */

@@ -33,6 +33,7 @@ from layout_prompt import build_layout_messages
 from llm import call_llm, get_provider, list_providers, PROVIDER_LABELS
 from prompt_builder import strip_fences
 from report_router import router as report_router
+from chat_router import router as chat_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,9 +41,10 @@ logging.basicConfig(
 )
 log = logging.getLogger("epms-dashboard")
 
-DASHBOARD_PORT = 8001
+DASHBOARD_PORT    = 8001
 STATIC_DIR        = Path(__file__).parent / "dashboard_static"
 REPORT_STATIC_DIR = Path(__file__).parent / "report_static"
+CHAT_STATIC_DIR   = Path(__file__).parent / "chat_static"
 
 app = FastAPI(
     title="EPMS AI Dashboard",
@@ -59,8 +61,10 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/report-static", StaticFiles(directory=str(REPORT_STATIC_DIR)), name="report-static")
+app.mount("/chat-static", StaticFiles(directory=str(CHAT_STATIC_DIR)), name="chat-static")
 
 app.include_router(report_router)
+app.include_router(chat_router)
 
 
 # ── startup ────────────────────────────────────────────────────────────────
@@ -143,6 +147,11 @@ def index():
 @app.get("/report")
 def report_page():
     return FileResponse(REPORT_STATIC_DIR / "report.html")
+
+
+@app.get("/chat")
+def chat_page():
+    return FileResponse(CHAT_STATIC_DIR / "chat.html")
 
 
 @app.get("/health")

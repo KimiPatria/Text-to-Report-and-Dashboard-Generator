@@ -1,0 +1,51 @@
+BUSINESS RULES (apply to every query):
+
+1. DATE HANDLING: Check the DDL column type before filtering by date.
+   If the column type is character varying / text: use TO_DATE(column, 'YYYY-MM-DD') for comparisons.
+     Example: TO_DATE(oph_date_col, 'YYYY-MM-DD') >= '2024-01-01'
+   If the column type is date: compare directly using ISO strings or ::date cast. NEVER wrap a date-type column in TO_DATE — PostgreSQL will reject it.
+     Example: oph_created_date >= '2024-01-01'::date
+   Never use NOW() - INTERVAL directly on a VARCHAR column.
+   "Last 3 months" for a VARCHAR column: TO_DATE(column, 'YYYY-MM-DD') >= (CURRENT_DATE - INTERVAL '90 days').
+
+2. TABLE PREFERENCE: Always prefer m_ tables over ZEPMS_ tables unless SAP-specific fields are needed.
+
+3. ACTIVE RECORDS: Only add WHERE (is_deleted = 0 OR is_deleted IS NULL) for a table if `is_deleted` explicitly appears in that table's DDL above. Do NOT add this filter for any table where `is_deleted` is not listed in the DDL — adding it will cause a SQL error.
+
+4. HIERARCHY: Company -> Estate (m_estate) -> Division (m_division) -> Block (m_block) -> TPH (m_tph).
+
+5. OPH DATE COLUMN: For any time-range filter on OPH/harvest data ('last 3 months', 'this year', etc.), always use oph_created_date (the actual harvest date, type date). Never use oph_approved_date for time-range queries — it records when the record was approved, not when harvesting occurred.
+
+6. HARVEST GRADING COMPLETENESS: When querying harvest yield or grading breakdown from t_oph, always include ALL bunch grading categories: bunches_ripe, bunches_unripe, bunches_overripe, bunches_underripe, bunches_rotten. Selecting only ripe and unripe will leave bunches_overripe + bunches_underripe + bunches_rotten unaccounted for, making ripe+unripe ≠ bunches_total.
+
+7. KEY MAPPINGS:
+   - "work done / activity cost" -> t_workdone (workdone_division_code, workdone_mandays, workdone_qty)
+   - "harvesting" -> t_oph (bunches_total, bunches_ripe)
+   - "delivery / transport" -> t_fdn (fdn_actual_tonnage)
+   - "attendance" -> t_attendance (attendance_code, attendance_date)
+   - "overtime" -> t_overtime (overtime_duration, overtime_mandays)
+   - "goods issue / material usage" -> tr_gi_header + tr_gi_detail
+   - "purchase order / PO" -> m_po_header (m_order_detail_net_value)  -- m_order_detail_net_value = total cost
+   - "division" -> m_division (division_code, division_name)
+   - "estate" -> m_estate (estate_code, estate_name)
+   - "total bunches / bunch count / janjang" -> t_oph (bunches_total, bunches_unripe, bunches_ripe, bunches_overripe)  -- t_abw is average bunch WEIGHT (kg) only, NOT bunch count
+   - "unripe bunches / janjang mentah" -> t_oph (bunches_unripe)
+
+8. CRITICAL TYPE CASTS — always apply before any arithmetic:
+   - t_harvesting_plan.harvesting_plan_ha → stored as VARCHAR, cast: harvesting_plan_ha::NUMERIC
+   - t_coconut_harvesting_plan.coconut_harvesting_plan_ha → stored as VARCHAR, cast: coconut_harvesting_plan_ha::NUMERIC  
+   - For division using any of the above, always wrap with NULLIF to prevent divide-by-zero:
+     NULLIF(harvesting_plan_ha::NUMERIC, 0)
+     NULLIF(coconut_harvesting_plan_ha::NUMERIC, 0)
+     NULLIF("BHA"::NUMERIC, 0)
+   - oph_lat, oph_long, cp_lat, cp_long are VARCHAR — cast to NUMERIC only if doing geospatial math
+
+9. NAME COLUMN MATCHING: Activity names, work type names, and similar descriptive
+   name columns store composite values (e.g. 'CIRCLE MANURING', 'PALM MANURING' —
+   not plain 'MANURING'). When the user refers to an activity or work type by a
+   keyword, always use LIKE with wildcards instead of exact equality:
+   - workdone_activity_name (t_workdone): LIKE '%KEYWORD%'
+   - activity_name (m_activity): LIKE '%KEYWORD%'
+   - worktype_name (m_worktype): LIKE '%KEYWORD%'
+   All LIKE patterns must use UPPERCASE keywords (consistent with Rule 1).
+   Use exact equality (=) only for code columns (e.g. workdone_activity_code = 'MNR').
