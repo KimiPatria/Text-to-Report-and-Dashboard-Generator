@@ -73,6 +73,7 @@ def build_sql_messages(
     examples: list[tuple[str, str]],
     prior_error: str | None = None,
     prior_sql: str | None = None,
+    history_block: str | None = None,
 ) -> list[dict]:
     """
     Build chat messages for the SQL writer with cache-stable ordering:
@@ -110,6 +111,12 @@ def build_sql_messages(
             f"Prior SQL failed: {prior_error}\n"
             f"SQL: {prior_sql}\n"
             "Return fixed SQL only."
+        )
+
+    if history_block:
+        parts.append(
+            "Recent conversation (the new question may refer to it):\n"
+            f"{history_block}"
         )
 
     parts.append(f"Q: {question}\nSQL:")

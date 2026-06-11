@@ -11,30 +11,52 @@
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 :root {
-  --bg:          #f6f8fa;
+  /* Wilmar brand palette — dark teal / sage chevrons, olive wordmark */
+  --bg:          #f7faf9;   /* soft fill for component contrast */
   --surface:     #ffffff;
   --card:        #ffffff;
-  --card-h:      #f0f3f6;
-  --border:      #d0d7de;
-  --border-s:    #eaedf0;
-  --text:        #24292f;
-  --muted:       #57606a;
-  --accent:      #4f46e5;
-  --accent-dim:  rgba(79,70,229,.08);
-  --accent-glow: rgba(79,70,229,.22);
-  --error:       #cf222e;
-  --error-bg:    #fff0f0;
+  --card-h:      #f1f5f4;
+  --border:      #dce4e1;
+  --border-s:    #ebf1ef;
+  --text:        #20312e;
+  --muted:       #64746f;
+  --accent:      #115e6e;
+  --accent-deep: #0b4351;
+  --sage:        #7ba39f;
+  --olive:       #8b8c7a;
+  --accent-dim:  rgba(17,94,110,.07);
+  --accent-glow: rgba(17,94,110,.20);
+  --sage-dim:    rgba(123,163,159,.16);
+  --error:       #b3382e;
+  --error-bg:    #fdf3f2;
   --r:           8px;
   --font:        'Inter', system-ui, sans-serif;
+  --ease-out:    cubic-bezier(.16, 1, .3, 1);
 }
 
 html, body { height:100%; overflow:hidden; }
 body {
   font-family: var(--font);
-  background: var(--bg);
+  background: #ffffff;
   color: var(--text);
   display: flex; flex-direction: column;
   font-size: 14px; line-height: 1.5;
+}
+
+/* ── ANIMATIONS ──────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
 }
 
 /* ── HEADER ──────────────────────────────────────────────────────── */
@@ -45,12 +67,7 @@ body {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0; z-index: 10;
 }
-.logo-mark {
-  width: 28px; height: 28px; border-radius: 7px;
-  background: var(--accent); font-size: 15px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.app-name { font-weight: 700; font-size: 14px; letter-spacing: -.3px; }
+.app-name { font-weight: 800; font-size: 14px; letter-spacing: -.3px; color: var(--accent-deep); }
 .app-sep  { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
 #header-context {
   font-size: 12px; color: var(--muted);
@@ -60,11 +77,11 @@ body.dash-mode #header-context { color: var(--text); font-weight: 600; font-size
 .app-nav { display: flex; align-items: center; gap: 2px; margin-left: 4px; }
 .app-nav a {
   font-size: 12px; font-weight: 500; color: var(--muted);
-  text-decoration: none; padding: 4px 10px; border-radius: 6px;
-  transition: background .15s, color .15s; white-space: nowrap;
+  text-decoration: none; padding: 5px 12px; border-radius: 99px;
+  transition: background .18s, color .18s, transform .18s; white-space: nowrap;
 }
-.app-nav a:hover { background: var(--accent-dim); color: var(--accent); }
-.app-nav a.nav-active { background: var(--accent-dim); color: var(--accent); font-weight: 600; }
+.app-nav a:hover { background: var(--accent-dim); color: var(--accent); transform: translateY(-1px); }
+.app-nav a.nav-active { background: var(--accent); color: #fff; font-weight: 600; }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .provider-pill {
   font-size: 11px; color: var(--muted);
@@ -73,12 +90,12 @@ body.dash-mode #header-context { color: var(--text); font-weight: 600; font-size
 }
 .fallback-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: #ef4444;
+  background: #c4cdc9;
   transition: background .3s;
   flex-shrink: 0;
   cursor: default;
 }
-.fallback-dot.active { background: #22c55e; }
+.fallback-dot.active { background: var(--sage); box-shadow: 0 0 0 3px var(--sage-dim); }
 
 /* ── MODE VISIBILITY ─────────────────────────────────────────────── */
 #dashboard-view { display: none; }
@@ -99,14 +116,17 @@ body.dash-mode #fab-area       { display: flex; }
 
 /* ── WELCOME / LANDING ───────────────────────────────────────────── */
 #welcome { margin: auto; text-align: center; padding: 36px 20px; max-width: 580px; }
-.welcome-logo { font-size: 44px; margin-bottom: 14px; }
 .welcome-title {
   font-size: 26px; font-weight: 800; letter-spacing: -.5px;
-  background: linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%);
+  background: linear-gradient(135deg, #115e6e 0%, #7ba39f 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   margin-bottom: 10px;
+  animation: fadeUp .45s var(--ease-out) .08s both;
 }
-.welcome-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+.welcome-sub {
+  font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.6;
+  animation: fadeUp .45s var(--ease-out) .16s both;
+}
 
 /* Mode selection cards */
 .mode-cards { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
@@ -114,12 +134,12 @@ body.dash-mode #fab-area       { display: flex; }
   background: var(--surface); border: 1.5px solid var(--border);
   border-radius: 12px; padding: 20px 22px; width: 220px;
   cursor: pointer; text-align: left; text-decoration: none;
-  transition: border-color .15s, box-shadow .15s, transform .12s;
+  transition: border-color .18s, box-shadow .18s, transform .18s var(--ease-out);
   display: flex; flex-direction: column; gap: 8px;
 }
 .mode-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 4px 18px rgba(79,70,229,.14);
+  box-shadow: 0 4px 18px rgba(17,94,110,.14);
   transform: translateY(-2px);
 }
 .mode-card-icon { font-size: 28px; }
@@ -131,17 +151,21 @@ body.dash-mode #fab-area       { display: flex; }
 #dash-welcome.visible { display: block; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.chips { animation: fadeUp .45s var(--ease-out) .24s both; }
 .chip {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 99px; padding: 6px 15px;
   font-size: 12px; color: var(--muted); cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
+  transition: border-color .18s, color .18s, background .18s, transform .18s var(--ease-out), box-shadow .18s;
   font-family: var(--font);
 }
-.chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.chip:hover {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-dim);
+  transform: translateY(-2px); box-shadow: 0 3px 10px var(--accent-glow);
+}
 
 /* ── CHAT MESSAGES ───────────────────────────────────────────────── */
-.msg { display: flex; gap: 12px; max-width: 860px; width: 100%; }
+.msg { display: flex; gap: 12px; max-width: 860px; width: 100%; animation: fadeUp .35s var(--ease-out) both; }
 .msg.user { margin-left: auto; flex-direction: row-reverse; max-width: 520px; }
 .avatar {
   width: 28px; height: 28px; border-radius: 50%;
@@ -150,7 +174,7 @@ body.dash-mode #fab-area       { display: flex; }
   flex-shrink: 0; margin-top: 2px;
   background: var(--border); color: var(--muted);
 }
-.avatar.ai { background: var(--accent); color: #fff; }
+.avatar.ai { background: linear-gradient(135deg, var(--sage) 0%, var(--accent) 100%); color: #fff; }
 .bubble {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r); padding: 11px 15px;
@@ -207,10 +231,14 @@ input.w-count {
   background: var(--accent); color: #fff; border: none;
   border-radius: 7px; padding: 7px 16px;
   font-size: 12px; font-weight: 600; cursor: pointer;
-  font-family: var(--font); transition: background .15s, opacity .15s;
+  font-family: var(--font);
+  transition: background .18s, opacity .18s, transform .18s var(--ease-out), box-shadow .18s;
   white-space: nowrap; display: flex; align-items: center; gap: 6px;
 }
-.send-btn:hover:not(:disabled) { background: #4338ca; }
+.send-btn:hover:not(:disabled) {
+  background: var(--accent-deep);
+  transform: translateY(-1px); box-shadow: 0 4px 14px var(--accent-glow);
+}
 .send-btn:disabled { opacity: .4; cursor: not-allowed; }
 .hint { font-size: 11px; color: var(--muted); text-align: center; margin-top: 5px; }
 
@@ -243,10 +271,16 @@ input.w-count {
 .wcard {
   background: var(--card); border: 1px solid var(--border-s);
   border-radius: var(--r); display: flex; flex-direction: column;
-  overflow: hidden; transition: border-color .15s, box-shadow .15s;
+  overflow: hidden;
+  transition: border-color .18s, box-shadow .18s, transform .18s var(--ease-out);
   cursor: pointer;
+  animation: fadeUp .45s var(--ease-out) both;
 }
-.wcard:hover { border-color: var(--accent); box-shadow: 0 2px 12px rgba(79,70,229,.10); }
+.wcard:hover {
+  border-color: var(--sage);
+  box-shadow: 0 4px 16px rgba(17,94,110,.10);
+  transform: translateY(-2px);
+}
 .wcard-head {
   padding: 8px 12px; border-bottom: 1px solid var(--border-s);
   display: flex; align-items: center; gap: 8px; flex-shrink: 0;
@@ -268,6 +302,7 @@ input.w-count {
   display: flex; flex-direction: column; justify-content: center;
 }
 .chart-wrap { position: relative; flex: 1; min-height: 160px; }
+.chart-wrap canvas { display: block; }
 
 /* KPI */
 .kpi { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 6px; }
@@ -306,7 +341,7 @@ input.w-count {
 /* ── DASH LOADING OVERLAY ────────────────────────────────────────── */
 #dash-loading {
   position: absolute; inset: 0;
-  background: rgba(246,248,250,.85); backdrop-filter: blur(3px);
+  background: rgba(255,255,255,.85); backdrop-filter: blur(3px);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 12px; z-index: 50;
 }
@@ -324,11 +359,11 @@ input.w-count {
   font-size: 26px; font-weight: 300; line-height: 1;
   cursor: pointer; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 20px rgba(79,70,229,.35);
+  box-shadow: 0 4px 20px rgba(17,94,110,.35);
   transition: background .15s, box-shadow .15s;
   transform-origin: center;
 }
-#fab-btn:hover { background: #4338ca; box-shadow: 0 6px 24px rgba(79,70,229,.5); }
+#fab-btn:hover { background: var(--accent-deep); box-shadow: 0 6px 24px rgba(17,94,110,.5); }
 #fab-btn.is-open { transform: rotate(45deg); transition: transform .2s, background .15s; }
 
 /* POPOVER */
@@ -383,7 +418,7 @@ textarea.pop-ta::placeholder { color: var(--muted); }
   font-family: var(--font); white-space: nowrap;
   transition: background .15s, opacity .15s;
 }
-.pop-send:hover:not(:disabled) { background: #4338ca; }
+.pop-send:hover:not(:disabled) { background: var(--accent-deep); }
 .pop-send:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── WIDGET INFO DRAWER ──────────────────────────────────────────── */
@@ -499,7 +534,6 @@ textarea.pop-ta::placeholder { color: var(--muted); }
 <body>
 
 <header class="app-header">
-  <div class="logo-mark">🌿</div>
   <span class="app-name">EPMS AI Dashboard</span>
   <div class="app-sep"></div>
   <span id="header-context">Describe your dashboard in plain English</span>
@@ -517,24 +551,11 @@ textarea.pop-ta::placeholder { color: var(--muted); }
 <div id="chat-view">
   <div class="chat-area" id="chat">
     <div id="welcome">
-      <div class="welcome-logo">🌿</div>
       <h1 class="welcome-title">EPMS AI Assistant</h1>
       <p class="welcome-sub">
-        Connected to your live EPMS database. Choose a tool to get started.
+        Connected to your live EPMS database. Describe your dashboard in plain English.
       </p>
-      <div class="mode-cards">
-        <div class="mode-card" onclick="selectDashboard()">
-          <div class="mode-card-icon">📊</div>
-          <div class="mode-card-name">Dashboard Generator</div>
-          <div class="mode-card-desc">Build interactive charts, KPIs, and data tables from plain English</div>
-        </div>
-        <a href="/report" class="mode-card">
-          <div class="mode-card-icon">📄</div>
-          <div class="mode-card-name">Report Generator</div>
-          <div class="mode-card-desc">Generate formal printable reports with presets or natural language</div>
-        </a>
-      </div>
-      <div id="dash-welcome">
+      <div id="dash-welcome" class="visible">
         <div class="chips">
           <button class="chip" onclick="useChip(this)">FFB production overview by block and estate</button>
           <button class="chip" onclick="useChip(this)">Employee attendance and workforce metrics</button>
@@ -629,33 +650,21 @@ let lastMaxW    = 5;
 let currentData = null;
 const chartMap  = new Map();
 
+/* Wilmar-derived chart palette: teal, sage, gold, olive + muted companions */
 const PALETTE = [
-  '#818cf8','#34d399','#fbbf24','#f87171',
-  '#60a5fa','#a78bfa','#fb923c','#2dd4bf',
+  '#157082','#7ba39f','#d4a84b','#8b8c7a',
+  '#4f93a8','#b07a5e','#6d8f63','#34555e',
 ];
 
 const CJ_TOOLTIP = {
-  backgroundColor: '#ffffff', borderColor: '#d0d7de', borderWidth: 1,
-  titleColor: '#24292f', bodyColor: '#57606a', padding: 10,
+  backgroundColor: '#ffffff', borderColor: '#dce4e1', borderWidth: 1,
+  titleColor: '#20312e', bodyColor: '#64746f', padding: 10,
 };
-const CJ_GRID  = 'rgba(208,215,222,.65)';
-const CJ_TICK  = '#57606a';
-
-/* ── landing: select dashboard mode ──────────────────────────────── */
-function selectDashboard() {
-  document.querySelector('.mode-cards').style.display = 'none';
-  document.getElementById('dash-welcome').classList.add('visible');
-  document.getElementById('goal').disabled = false;
-  document.getElementById('send-btn').disabled = false;
-  document.getElementById('goal').focus();
-}
+const CJ_GRID  = 'rgba(220,228,225,.65)';
+const CJ_TICK  = '#64746f';
 
 /* ── boot ─────────────────────────────────────────────────────────── */
 window.addEventListener('DOMContentLoaded', () => {
-  // Disable input until user selects Dashboard mode from landing
-  document.getElementById('goal').disabled = true;
-  document.getElementById('send-btn').disabled = true;
-
   const ta = document.getElementById('goal');
   ta.addEventListener('input', function() { grow(this); });
   ta.addEventListener('keydown', e => {
@@ -840,6 +849,7 @@ function buildDashboard(data) {
 function buildCard(widget, wd, cid, idx) {
   const card = document.createElement('div');
   card.className = 'wcard';
+  card.style.animationDelay = Math.min(idx * 70, 500) + 'ms';
   card.addEventListener('click', () => showWidgetInfo(idx));
 
   const w = Math.min(Math.max(parseInt((widget.grid || {}).w) || 6, 1), 12);
@@ -893,15 +903,27 @@ function mkTable(cols, rows) {
 }
 
 /* ── Chart.js ─────────────────────────────────────────────────────── */
+const _TOTAL_LABELS = /^(total|grand\s*total|sub\s*total|all|overall|sum|aggregate)$/i;
+
+function _filterChartRows(rows, xF) {
+  return rows.filter(r => {
+    const v = r[xF];
+    if (v == null || v === '') return false;
+    if (_TOTAL_LABELS.test(String(v).trim())) return false;
+    return true;
+  });
+}
+
 function initChart(widget, wd, cid) {
   const canvas = document.getElementById(cid);
   if (!canvas) return;
 
-  const rows = wd.rows, cols = wd.columns, type = widget.chart_type;
-  const row0 = rows[0] || {};
+  const rawRows = wd.rows, cols = wd.columns, type = widget.chart_type;
+  const row0 = rawRows[0] || {};
   const xF   = (widget.x_field  && widget.x_field  in row0) ? widget.x_field  : cols[0];
   const yF   = (widget.y_field  && widget.y_field  in row0) ? widget.y_field  : (cols.length > 1 ? cols[cols.length - 1] : cols[0]);
   const gF   = (widget.group_by && widget.group_by in row0) ? widget.group_by : xF;
+  const rows = _filterChartRows(rawRows, xF);
 
   const base = {
     responsive: true, maintainAspectRatio: false,
@@ -945,6 +967,102 @@ function initChart(widget, wd, cid) {
       data: { datasets: [{ label: `${xF} vs ${yF}`,
         data: rows.map(r => ({ x: toNum(r[xF]), y: toNum(r[yF]) })),
         backgroundColor: PALETTE[0]+'99', borderColor: PALETTE[0], pointRadius: 5, pointHoverRadius: 7 }] },
+      options: { ...base, scales: axes } };
+  } else if (type === 'horizontal_bar') {
+    const hAxes = {
+      x: { grid: { color: CJ_GRID }, ticks: { color: CJ_TICK, font: { size: 10 } } },
+      y: {
+        grid: { color: CJ_GRID },
+        ticks: { color: CJ_TICK, font: { size: 10 }, maxTicksLimit: 10,
+          callback(v) { const l = String(this.getLabelForValue(v)); return l.length > 18 ? l.slice(0,17)+'…' : l; } },
+      },
+    };
+    cfg = { type: 'bar',
+      data: { labels: rows.map(r => str(r[xF])),
+        datasets: [{ label: yF, data: rows.map(r => toNum(r[yF])),
+          backgroundColor: PALETTE.map(c => c+'bb'),
+          borderColor: PALETTE, borderWidth: 1, borderRadius: 3 }] },
+      options: { ...base, indexAxis: 'y', scales: hAxes } };
+  } else if (type === 'stacked_bar') {
+    const groups = [...new Set(rows.map(r => str(r[gF])))];
+    const labels = [...new Set(rows.map(r => str(r[xF])))];
+    const datasets = groups.map((g, i) => ({
+      label: g,
+      data: labels.map(lbl => {
+        const match = rows.find(r => str(r[xF]) === lbl && str(r[gF]) === g);
+        return match ? toNum(match[yF]) : 0;
+      }),
+      backgroundColor: PALETTE[i % PALETTE.length]+'cc',
+      borderColor: PALETTE[i % PALETTE.length],
+      borderWidth: 1, borderRadius: 2,
+    }));
+    const sAxes = {
+      x: { stacked: true, grid: { color: CJ_GRID },
+        ticks: { color: CJ_TICK, font: { size: 10 }, maxTicksLimit: 8,
+          callback(v) { const l = String(this.getLabelForValue(v)); return l.length > 14 ? l.slice(0,13)+'…' : l; } } },
+      y: { stacked: true, grid: { color: CJ_GRID }, ticks: { color: CJ_TICK, font: { size: 10 } } },
+    };
+    cfg = { type: 'bar', data: { labels, datasets },
+      options: { ...base, scales: sAxes,
+        plugins: { ...base.plugins,
+          legend: { display: true, position: 'top',
+            labels: { color: CJ_TICK, font: { size: 10 }, boxWidth: 10, padding: 8 } } } } };
+  } else if (type === 'multi_line') {
+    const groups = [...new Set(rows.map(r => str(r[gF])))];
+    const labels = [...new Set(rows.map(r => str(r[xF])))];
+    const datasets = groups.map((g, i) => ({
+      label: g,
+      data: labels.map(lbl => {
+        const match = rows.find(r => str(r[xF]) === lbl && str(r[gF]) === g);
+        return match ? toNum(match[yF]) : null;
+      }),
+      borderColor: PALETTE[i % PALETTE.length],
+      backgroundColor: PALETTE[i % PALETTE.length]+'22',
+      borderWidth: 2, fill: false, tension: 0.35,
+      pointRadius: 3, pointHoverRadius: 5, spanGaps: true,
+    }));
+    cfg = { type: 'line', data: { labels, datasets },
+      options: { ...base, scales: axes,
+        plugins: { ...base.plugins,
+          legend: { display: true, position: 'top',
+            labels: { color: CJ_TICK, font: { size: 10 }, boxWidth: 10, padding: 8 } } } } };
+  } else if (type === 'radar') {
+    const groups = [...new Set(rows.map(r => str(r[gF])))];
+    const labels = [...new Set(rows.map(r => str(r[xF])))];
+    const useGroups = groups.length > 1 && groups.length <= PALETTE.length;
+    const datasets = useGroups
+      ? groups.map((g, i) => ({
+          label: g,
+          data: labels.map(lbl => {
+            const match = rows.find(r => str(r[xF]) === lbl && str(r[gF]) === g);
+            return match ? toNum(match[yF]) : 0;
+          }),
+          borderColor: PALETTE[i % PALETTE.length],
+          backgroundColor: PALETTE[i % PALETTE.length]+'33',
+          borderWidth: 2, pointRadius: 3,
+        }))
+      : [{ label: yF, data: rows.map(r => toNum(r[yF])),
+          borderColor: PALETTE[0], backgroundColor: PALETTE[0]+'33',
+          borderWidth: 2, pointRadius: 3 }];
+    cfg = { type: 'radar',
+      data: { labels: useGroups ? labels : rows.map(r => str(r[xF])), datasets },
+      options: { ...base,
+        scales: { r: {
+          grid: { color: CJ_GRID }, angleLines: { color: CJ_GRID },
+          pointLabels: { color: CJ_TICK, font: { size: 10 } },
+          ticks: { color: CJ_TICK, font: { size: 9 }, backdropColor: 'transparent' },
+        } },
+        plugins: { ...base.plugins,
+          legend: { display: useGroups, position: 'top',
+            labels: { color: CJ_TICK, font: { size: 10 }, boxWidth: 10, padding: 8 } } } } };
+  } else if (type === 'bubble') {
+    const rF = cols.find(c => c !== xF && c !== yF) || yF;
+    const rawR = rows.map(r => toNum(r[rF]));
+    const maxR = Math.max(...rawR, 1);
+    cfg = { type: 'bubble',
+      data: { datasets: [{ label: `${xF} / ${yF}`,
+        data: rows.map((r, i) => ({ x: toNum(r[xF]), y: toNum(r[yF]), r: Math.max(4, (rawR[i]/maxR)*22) })),
+        backgroundColor: PALETTE[0]+'88', borderColor: PALETTE[0], borderWidth: 1.5 }] },
       options: { ...base, scales: axes } };
   }
 

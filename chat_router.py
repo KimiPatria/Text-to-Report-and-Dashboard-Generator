@@ -3,10 +3,13 @@ EPMS Data Chatbot — FastAPI router
 Mounted at /chat on dashboard_server.py (port 8001).
 
 POST /chat/message — conversational Q&A backed by the EPMS database.
-Pipeline: retrieve tables → generate SQL → execute → reason → respond.
+Session-scoped context: a lightweight router decides per message whether to
+answer from conversation history (no SQL) or run the full pipeline:
+retrieve tables → generate SQL → execute → reason → respond.
 """
 
 import decimal
+import json
 import logging
 import time
 from datetime import date, datetime
@@ -18,7 +21,20 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from config import engine
+from chat_history import (
+    add_turn,
+    delete_session,
+    ensure_session,
+    get_turns,
+    list_sessions,
+)
+from config import (
+    engine,
+    CHAT_HISTORY_DATA_TURNS,
+    CHAT_HISTORY_MAX_ROWS,
+    CHAT_HISTORY_TEXT_TURNS,
+    ROUTING_MODEL,
+)
 from error_handler import is_off_domain
 from llm import call_llm, get_provider, PROVIDER_LABELS
 from prompt_builder import build_sql_messages, extract_sql
@@ -27,8 +43,6 @@ from retrieval import retrieve_tables, retrieve_examples
 from sql_validator import validate, ensure_limit
 
 log = logging.getLogger("epms-chat")
-
-import json
 
 _CHAT_ANSWER_SYSTEM_PROMPT = (
     "You are a knowledgeable data analyst for an EPMS palm-oil plantation. "
@@ -41,6 +55,26 @@ _CHAT_ANSWER_SYSTEM_PROMPT = (
     "- Complex or multi-column results: walk through the most important findings naturally.\n"
     "Always cite specific numbers with units. Be concise — no padding, no preamble, "
     "no closing remarks like 'I hope this helps'. If the data is empty, say so plainly."
+)
+
+_CONTEXT_ANSWER_SYSTEM_PROMPT = (
+    "You are a knowledgeable data analyst for an EPMS palm-oil plantation. "
+    "Answer the user's follow-up question using ONLY the conversation history and the "
+    "previously fetched data provided below — no new database query will be run. "
+    "Cite specific numbers with units. Be concise — no padding, no preamble. "
+    "If the provided data cannot fully answer the question, say what is missing and "
+    "suggest asking it as a new question."
+)
+
+_ROUTER_SYSTEM_PROMPT = (
+    "You route questions for a plantation-data chatbot. Given the recent conversation "
+    "and a new question, decide whether it can be answered using only that conversation "
+    "(including any data rows already fetched), or whether it needs a fresh database query. "
+    'Reply ONLY with JSON: {"route": "context"} or {"route": "sql"}.\n'
+    'Pick "context" when the question refers to, clarifies, reformats, or asks for '
+    "calculations or explanations about information already shown.\n"
+    'Pick "sql" when it needs new or different data: another metric, entity, date range, '
+    "filter, or more rows than were fetched."
 )
 
 
@@ -82,11 +116,14 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
-    history: list[ChatMessage] = []
+    session_id: Optional[str] = None
+    history: list[ChatMessage] = []  # legacy field — server-side history is authoritative
 
 
 class ChatResponse(BaseModel):
     answer: str
+    session_id: Optional[str] = None
+    route: str = "sql"          # "sql" | "context"
     sql: Optional[str] = None
     columns: list[str] = []
     rows: list[dict] = []
@@ -163,6 +200,127 @@ _SQL_FAIL_ANSWER = (
 )
 
 
+# ── conversational context ─────────────────────────────────────────────────
+
+def _truncate(s: str, n: int) -> str:
+    s = (s or "").strip()
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+
+def _route_followup(message: str, turns: list[dict]) -> str:
+    """Decide 'context' vs 'sql' with the cheap routing model.
+
+    Sees text Q&A only (answers truncated) plus a one-line note about which
+    turns still have data rows available. Falls back to 'sql' on any failure.
+    """
+    lines: list[str] = []
+    for t in turns[-CHAT_HISTORY_TEXT_TURNS:]:
+        lines.append(f"Q: {_truncate(t['question'], 200)}")
+        lines.append(f"A: {_truncate(t['answer'], 240)}")
+        if t["rows"]:
+            lines.append(
+                f"[data fetched for this turn: columns {t['columns']}, "
+                f"{len(t['rows'])} of {t['row_count']} rows available]"
+            )
+    user_content = "\n".join(lines) + f"\n\nNew question: {message}"
+
+    try:
+        import llm as _llm
+        client = _llm._groq_client
+        if not client:
+            return "sql"
+        completion = client.chat.completions.create(
+            model=ROUTING_MODEL,
+            messages=[
+                {"role": "system", "content": _ROUTER_SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0,
+            max_tokens=20,
+            response_format={"type": "json_object"},
+        )
+        raw = (completion.choices[0].message.content or "").strip()
+        u = completion.usage
+        log.info(
+            "token_usage phase=chat_route model=%s input=%d output=%d",
+            ROUTING_MODEL,
+            u.prompt_tokens if u else 0,
+            u.completion_tokens if u else 0,
+        )
+        route = json.loads(raw).get("route", "sql")
+        return route if route in ("context", "sql") else "sql"
+    except Exception as exc:
+        log.warning("[chat] follow-up router failed: %s — defaulting to sql", exc)
+        return "sql"
+
+
+def _build_context_messages(message: str, turns: list[dict]) -> list[dict]:
+    """Prompt for answering from history. Tiered payload: text Q&A for recent
+    turns, full rows only for the last CHAT_HISTORY_DATA_TURNS data-bearing
+    turns, capped at CHAT_HISTORY_MAX_ROWS rows each."""
+    text_turns = turns[-CHAT_HISTORY_TEXT_TURNS:]
+    data_turns = [t for t in turns if t["rows"]][-CHAT_HISTORY_DATA_TURNS:]
+
+    parts: list[str] = ["Conversation so far:"]
+    for t in text_turns:
+        parts.append(f"Q: {_truncate(t['question'], 300)}")
+        # Rows for data-bearing turns are appended below (with their SQL);
+        # for row-less turns the SQL alone still grounds meta-questions.
+        if t["sql"] and t not in data_turns:
+            parts.append(f"SQL used (returned {t['row_count']} rows): {t['sql']}")
+        parts.append(f"A: {_truncate(t['answer'], 500)}")
+
+    for t in data_turns:
+        rows = t["rows"][:CHAT_HISTORY_MAX_ROWS]
+        rows_json  = json.dumps(rows, default=str, ensure_ascii=False)
+        stats_json = json.dumps(t["stats"], default=str, ensure_ascii=False)
+        parts.append(
+            f"\nData fetched earlier for: {_truncate(t['question'], 200)}\n"
+            f"SQL: {t['sql']}\n"
+            f"Columns: {t['columns']}\n"
+            f"Summary stats (over all {t['row_count']} rows): {stats_json}\n"
+            f"Rows (first {len(rows)} of {t['row_count']}): {rows_json}"
+        )
+
+    parts.append(f"\nFollow-up question: {message}")
+    return [
+        {"role": "system", "content": _CONTEXT_ANSWER_SYSTEM_PROMPT},
+        {"role": "user", "content": "\n".join(parts)},
+    ]
+
+
+def _sql_history_block(turns: list[dict]) -> str:
+    """Text-only history for the SQL writer — last 2 turns, question + SQL."""
+    lines: list[str] = []
+    for t in turns[-2:]:
+        lines.append(f"Q: {_truncate(t['question'], 200)}")
+        if t["sql"]:
+            lines.append(f"SQL: {t['sql']}")
+        else:
+            lines.append(f"A: {_truncate(t['answer'], 160)}")
+    return "\n".join(lines)
+
+
+def _answer_from_context(
+    sid: str, message: str, turns: list[dict], t0: float
+) -> ChatResponse:
+    messages = _build_context_messages(message, turns)
+    answer_raw, provider_used, usage = call_llm(messages, max_tokens=600, temperature=0)
+    log.info(
+        "[chat] context-answer provider=%s input=%d output=%d",
+        provider_used, usage["input_tokens"], usage["output_tokens"],
+    )
+    answer = answer_raw.strip() or _NO_DATA_ANSWER
+    log.info("[chat] done %.2fs (from context)", time.monotonic() - t0)
+    return ChatResponse(
+        answer=answer,
+        session_id=sid,
+        route="context",
+        provider=provider_used,
+        provider_label=PROVIDER_LABELS.get(provider_used, provider_used),
+    )
+
+
 # ── endpoint ───────────────────────────────────────────────────────────────
 
 @router.post("/message", response_model=ChatResponse)
@@ -172,10 +330,35 @@ def chat_message(req: ChatRequest) -> ChatResponse:
         return JSONResponse(status_code=400, content={"detail": "message must not be empty"})
 
     t0 = time.monotonic()
-    log.info('[chat] message="%s"', message[:120])
+    sid = ensure_session(req.session_id, message)
+    turns = get_turns(sid, limit=CHAT_HISTORY_TEXT_TURNS + CHAT_HISTORY_DATA_TURNS)
+    log.info('[chat] message="%s" session=%s turns=%d', message[:120], sid[:8], len(turns))
 
-    # ── 1. Retrieve tables ────────────────────────────────────────────────
-    table_cards, used_llm_fallback = retrieve_tables(message, k=5)
+    # ── 0. Route: answer from context or hit the database? ───────────────
+    if turns and _route_followup(message, turns) == "context":
+        resp = _answer_from_context(sid, message, turns, t0)
+        add_turn(sid, message, resp.answer, route="context")
+        return resp
+
+    resp, stats = _run_sql_pipeline(sid, message, turns, t0)
+    add_turn(
+        sid, message, resp.answer,
+        sql=resp.sql if not resp.error_type else None,
+        columns=resp.columns, rows=resp.rows,
+        row_count=resp.row_count, stats=stats,
+        route="sql",
+    )
+    return resp
+
+
+def _run_sql_pipeline(
+    sid: str, message: str, turns: list[dict], t0: float
+) -> tuple[ChatResponse, Optional[dict]]:
+    # ── 1. Retrieve tables (augmented with the prior question on follow-ups) ─
+    retrieval_query = message
+    if turns:
+        retrieval_query = f"{turns[-1]['question']}\n{message}"
+    table_cards, used_llm_fallback = retrieve_tables(retrieval_query, k=5)
     table_names = [c.name for c in table_cards]
     log.info("[chat] tables: %s (llm_fallback=%s)", table_names, used_llm_fallback)
 
@@ -185,9 +368,10 @@ def chat_message(req: ChatRequest) -> ChatResponse:
         answer = _OFF_DOMAIN_ANSWER if kind == "off_domain" else _NO_DATA_ANSWER
         return ChatResponse(
             answer=answer,
+            session_id=sid,
             used_llm_fallback=used_llm_fallback,
             error_type=kind,
-        )
+        ), None
 
     # ── 2. Few-shot examples ──────────────────────────────────────────────
     try:
@@ -195,8 +379,11 @@ def chat_message(req: ChatRequest) -> ChatResponse:
     except Exception:
         examples = []
 
-    # ── 3. Generate SQL ───────────────────────────────────────────────────
-    sql_messages = build_sql_messages(message, table_cards, examples)
+    # ── 3. Generate SQL (text-only history so follow-ups resolve) ────────
+    history_block = _sql_history_block(turns) if turns else None
+    sql_messages = build_sql_messages(
+        message, table_cards, examples, history_block=history_block
+    )
     raw_sql, provider_used, usage = call_llm(sql_messages, max_tokens=800, temperature=0)
     log.info(
         "[chat] SQL gen provider=%s input=%d output=%d",
@@ -208,12 +395,13 @@ def chat_message(req: ChatRequest) -> ChatResponse:
         log.info("[chat] no SQL extracted")
         return ChatResponse(
             answer=_NO_DATA_ANSWER,
+            session_id=sid,
             tables_used=table_names,
             provider=provider_used,
             provider_label=PROVIDER_LABELS.get(provider_used, provider_used),
             used_llm_fallback=used_llm_fallback,
             error_type="no_data",
-        )
+        ), None
 
     # ── 4. Validate SQL ───────────────────────────────────────────────────
     ok, reason = validate(sql)
@@ -221,13 +409,14 @@ def chat_message(req: ChatRequest) -> ChatResponse:
         log.info("[chat] SQL validation failed: %s", reason)
         return ChatResponse(
             answer=_SQL_FAIL_ANSWER,
+            session_id=sid,
             sql=sql,
             tables_used=table_names,
             provider=provider_used,
             provider_label=PROVIDER_LABELS.get(provider_used, provider_used),
             used_llm_fallback=used_llm_fallback,
             error_type="no_data",
-        )
+        ), None
 
     # ── 5. Execute (with one retry on SQL error) ──────────────────────────
     columns, rows, err = _execute_safe(sql)
@@ -236,6 +425,7 @@ def chat_message(req: ChatRequest) -> ChatResponse:
         retry_messages = build_sql_messages(
             message, table_cards, examples,
             prior_error=err, prior_sql=sql,
+            history_block=history_block,
         )
         raw_retry, provider_used, usage = call_llm(retry_messages, max_tokens=800, temperature=0)
         sql_retry = extract_sql(raw_retry)
@@ -251,13 +441,14 @@ def chat_message(req: ChatRequest) -> ChatResponse:
         record_query(message, sql, provider_used, table_names, success=False, error=err)
         return ChatResponse(
             answer=_SQL_FAIL_ANSWER,
+            session_id=sid,
             sql=sql,
             tables_used=table_names,
             provider=provider_used,
             provider_label=PROVIDER_LABELS.get(provider_used, provider_used),
             used_llm_fallback=used_llm_fallback,
             error_type="no_data",
-        )
+        ), None
 
     # ── 6. Compute stats & build answer ──────────────────────────────────
     stats = _compute_stats(columns, rows)
@@ -285,6 +476,7 @@ def chat_message(req: ChatRequest) -> ChatResponse:
 
     return ChatResponse(
         answer=answer,
+        session_id=sid,
         sql=sql,
         columns=columns,
         rows=rows[:100],
@@ -293,4 +485,24 @@ def chat_message(req: ChatRequest) -> ChatResponse:
         provider=provider_used,
         provider_label=PROVIDER_LABELS.get(provider_used, provider_used),
         used_llm_fallback=used_llm_fallback,
-    )
+    ), stats
+
+
+# ── session endpoints ──────────────────────────────────────────────────────
+
+@router.get("/sessions")
+def sessions_index():
+    return {"sessions": list_sessions()}
+
+
+@router.get("/sessions/{session_id}")
+def session_detail(session_id: str):
+    return {"id": session_id, "turns": get_turns(session_id, limit=100)}
+
+
+@router.delete("/sessions/{session_id}")
+def session_remove(session_id: str):
+    deleted = delete_session(session_id)
+    if not deleted:
+        return JSONResponse(status_code=404, content={"detail": "session not found"})
+    return {"ok": True}

@@ -17,6 +17,14 @@ DB_SCHEMA = os.getenv("DB_SCHEMA", "public")
 
 # --- dynamic routing (iteration 2) ---
 ROUTING_MODEL = os.getenv("ROUTING_MODEL", "llama-3.1-8b-instant")
+
+# --- conversational context (chat history) ---
+# Text Q&A turns included in prompts (cheap, ~50-150 tokens each).
+CHAT_HISTORY_TEXT_TURNS = int(os.getenv("CHAT_HISTORY_TEXT_TURNS", "4"))
+# Data-bearing turns whose rows are replayed when answering from context (expensive).
+CHAT_HISTORY_DATA_TURNS = int(os.getenv("CHAT_HISTORY_DATA_TURNS", "2"))
+# Row cap per replayed data turn.
+CHAT_HISTORY_MAX_ROWS = int(os.getenv("CHAT_HISTORY_MAX_ROWS", "30"))
 CATALOG_TTL_SECONDS = int(os.getenv("CATALOG_TTL_SECONDS", "1800"))
 MAX_ROUTED_TABLES = int(os.getenv("MAX_ROUTED_TABLES", "12"))
 GLOSSARY_PATH = os.getenv("GLOSSARY_PATH", "./glossary.yaml")

@@ -34,6 +34,8 @@ Rules:
 - sql_hint must be a valid SELECT skeleton referencing only columns present in the DDL; set to null if unsure
 - Use only tables and columns present in the DDL block
 - tables_used must list every table referenced by at least one widget
+- NEVER use ROLLUP, GROUPING SETS, CUBE, or UNION ALL to add subtotal/grand-total rows in any sql_hint — chart widgets must return only atomic data rows, never summary rows
+- For time-series or grouped charts the sql_hint must filter to individual periods (e.g. GROUP BY month, GROUP BY estate) with no total/rollup rows; grand totals belong in a separate big_number widget
 """
 
 

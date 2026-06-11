@@ -139,19 +139,24 @@ def _execute_safe(
 
 # ── routes ─────────────────────────────────────────────────────────────────
 
+# Browsers heuristically cache FileResponse pages; force revalidation so UI
+# changes show up without a hard refresh.
+_NO_CACHE = {"Cache-Control": "no-cache"}
+
+
 @app.get("/")
 def index():
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(STATIC_DIR / "index.html", headers=_NO_CACHE)
 
 
 @app.get("/report")
 def report_page():
-    return FileResponse(REPORT_STATIC_DIR / "report.html")
+    return FileResponse(REPORT_STATIC_DIR / "report.html", headers=_NO_CACHE)
 
 
 @app.get("/chat")
 def chat_page():
-    return FileResponse(CHAT_STATIC_DIR / "chat.html")
+    return FileResponse(CHAT_STATIC_DIR / "chat.html", headers=_NO_CACHE)
 
 
 @app.get("/health")
