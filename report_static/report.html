@@ -65,18 +65,33 @@ body {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0; z-index: 10;
   position: sticky; top: 0;
+  /* sticky already implies a stacking context; relative not needed */
 }
 .app-name { font-weight: 800; font-size: 14px; letter-spacing: -.3px; color: var(--accent-deep); }
 .app-sep  { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
 .app-sub  { font-size: 12px; color: var(--muted); }
-.app-nav { display: flex; align-items: center; gap: 2px; margin-left: 4px; }
+.app-nav { display: flex; align-items: center; gap: 2px; position: absolute; left: 50%; transform: translateX(-50%); }
+.nav-pill {
+  position: absolute; background: var(--accent); border-radius: 99px;
+  z-index: 0; pointer-events: none; opacity: 0;
+  transition: left .3s var(--ease-out), width .3s var(--ease-out), opacity .15s;
+}
 .app-nav a {
+  position: relative; z-index: 1;
   font-size: 12px; font-weight: 500; color: var(--muted);
   text-decoration: none; padding: 5px 12px; border-radius: 99px;
-  transition: background .18s, color .18s, transform .18s; white-space: nowrap;
+  transition: color .18s; white-space: nowrap;
 }
-.app-nav a:hover { background: var(--accent-dim); color: var(--accent); transform: translateY(-1px); }
-.app-nav a.nav-active { background: var(--accent); color: #fff; font-weight: 600; }
+.app-nav a:not(.nav-active):hover { color: var(--accent); }
+.app-nav a.nav-active { color: var(--muted); }
+.nav-clone {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; gap: 2px;
+  pointer-events: none; z-index: 2;
+  clip-path: inset(0 100% 0 0 round 99px);
+  transition: clip-path .3s var(--ease-out);
+}
+.nav-clone span { font-size: 12px; font-weight: 500; color: #fff; padding: 5px 12px; white-space: nowrap; }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .back-link {
   font-size: 12px; color: var(--muted); text-decoration: none;
@@ -634,10 +649,14 @@ input[type="date"]:focus { border-color: var(--accent); }
   <span class="app-name">EPMS AI</span>
   <div class="app-sep" style="width:1px;height:16px;background:var(--border);flex-shrink:0;"></div>
   <span class="app-sub">Report Generator</span>
-  <nav class="app-nav">
+  <nav class="app-nav" id="app-nav">
+    <span class="nav-pill" id="nav-pill"></span>
     <a href="/">Dashboard</a>
     <a href="/report" class="nav-active">Report</a>
     <a href="/chat">Chat</a>
+    <div class="nav-clone" id="nav-clone" aria-hidden="true">
+      <span>Dashboard</span><span>Report</span><span>Chat</span>
+    </div>
   </nav>
   <div class="header-right">
     <span class="fallback-dot" id="fallback-dot" title="LLM Fallback: OFF"></span>
@@ -1391,6 +1410,26 @@ function esc(s) {
   return d.innerHTML;
 }
 function str(v) { return v == null ? '' : String(v); }
+(function(){
+  const nav=document.getElementById('app-nav'),pill=document.getElementById('nav-pill'),clone=document.getElementById('nav-clone');
+  if(!nav||!pill)return;
+  function movePill(el,instant){
+    const nr=nav.getBoundingClientRect(),er=el.getBoundingClientRect();
+    const l=er.left-nr.left,t=er.top-nr.top,w=er.width,h=er.height;
+    if(instant){pill.style.transition='none';if(clone)clone.style.transition='none';}
+    pill.style.left=l+'px';pill.style.top=t+'px';pill.style.width=w+'px';pill.style.height=h+'px';
+    if(clone){const nw=nav.offsetWidth,nh=nav.offsetHeight;clone.style.clipPath=`inset(${t}px ${nw-l-w}px ${nh-t-h}px ${l}px round 99px)`;}
+    if(instant)requestAnimationFrame(()=>{pill.style.transition='';if(clone)clone.style.transition='';});
+  }
+  const active=nav.querySelector('.nav-active');
+  if(active){movePill(active,true);requestAnimationFrame(()=>{pill.style.opacity='1';});}
+  nav.querySelectorAll('a:not(.nav-active)').forEach(a=>{
+    a.addEventListener('click',function(e){
+      e.preventDefault();movePill(this,false);
+      setTimeout(()=>{location.href=this.href;},280);
+    });
+  });
+})();
 </script>
 </body>
 </html>
